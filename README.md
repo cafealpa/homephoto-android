@@ -1,8 +1,11 @@
 # 홈 포토 백업 — 안드로이드 앱
 
-폰의 사진·동영상을 집 서버([`../server`](../server))로 백업하고, 서버에 쌓인 사진을
-타임라인·인물별로 보는 앱. 디자인 의도와 화면 구조는 [`docs/UI.md`](../docs/UI.md),
-전체 시스템 설계는 [`docs/DESIGN.md`](../docs/DESIGN.md).
+폰의 사진·동영상을 집 서버로 백업하고, 서버에 쌓인 사진을 타임라인·인물별로 보는 앱.
+디자인 의도와 화면 구조는 [`docs/UI.md`](docs/UI.md).
+
+서버(Kotlin + Spring Boot)·얼굴 인식 워커·전체 시스템 설계는 별도 저장소
+[cafealpa/homePhotobackupPjt](https://github.com/cafealpa/homePhotobackupPjt)에 있습니다
+— 아키텍처는 [DESIGN.md](https://github.com/cafealpa/homePhotobackupPjt/blob/main/docs/DESIGN.md), 서버 실행법은 그쪽 README 참고.
 
 ## 스택
 
@@ -13,7 +16,7 @@
 
 ## 빌드·실행
 
-Android Studio에서 `android/` 폴더를 연다. `local.properties`(SDK 경로)는 자동 생성되며
+Android Studio에서 이 저장소 루트를 연다. `local.properties`(SDK 경로)는 자동 생성되며
 git에 올라가지 않는다. 명령줄:
 
 ```bash
