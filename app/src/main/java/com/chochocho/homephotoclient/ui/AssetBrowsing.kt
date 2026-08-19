@@ -73,10 +73,16 @@ internal class AssetListState(
 
 /** 그리드 한 칸: 정사각 썸네일 (+동영상 배지). */
 @Composable
-internal fun ThumbCell(asset: AssetDto, baseUrl: String, apiKey: String, onClick: () -> Unit) {
+internal fun ThumbCell(
+    asset: AssetDto,
+    baseUrl: String,
+    apiKey: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     Box(
-        modifier = Modifier
+        modifier = modifier
             .aspectRatio(1f)
             .clickable(onClick = onClick),
     ) {

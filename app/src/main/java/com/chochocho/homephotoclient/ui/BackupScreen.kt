@@ -21,12 +21,9 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -49,6 +46,9 @@ import com.chochocho.homephotoclient.backup.BackupEngine
 import com.chochocho.homephotoclient.backup.BackupState
 import com.chochocho.homephotoclient.backup.formatElapsed
 import com.chochocho.homephotoclient.data.local.BackupDb
+import com.chochocho.homephotoclient.ui.components.HomePhotoCard
+import com.chochocho.homephotoclient.ui.components.PrimaryActionButton
+import com.chochocho.homephotoclient.ui.components.SecondaryActionButton
 import com.chochocho.homephotoclient.data.local.FailureEntry
 import com.chochocho.homephotoclient.data.local.LocalAsset
 import kotlinx.coroutines.delay
@@ -115,41 +115,35 @@ fun BackupScreen(engine: BackupEngine) {
         Text("백업", style = MaterialTheme.typography.headlineSmall)
 
         if (!granted) {
-            Text("사진·동영상을 읽으려면 권한이 필요합니다.")
-            Button(onClick = { launcher.launch(requiredPermissions()) }) {
-                Text("권한 허용")
-            }
+            SummaryRow("사진·동영상을 읽으려면 권한이 필요합니다.")
+            PrimaryActionButton("권한 허용", onClick = { launcher.launch(requiredPermissions()) })
             return@Column
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                val total = counts.values.sum()
-                Text("발견된 파일: ${total}개")
-                Text("백업 완료: ${counts["UPLOADED"] ?: 0}개")
-                Text("대기 중: ${(counts["NEW"] ?: 0) + (counts["HASHED"] ?: 0)}개")
-                Text(
-                    "실패: ${counts["FAILED"] ?: 0}개",
-                    color = if ((counts["FAILED"] ?: 0) > 0) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurface,
+        HomePhotoCard(verticalGap = 4.dp) {
+            val total = counts.values.sum()
+            SummaryRow("발견된 파일: ${total}개")
+            SummaryRow("백업 완료: ${counts["UPLOADED"] ?: 0}개")
+            SummaryRow("대기 중: ${(counts["NEW"] ?: 0) + (counts["HASHED"] ?: 0)}개")
+            SummaryRow(
+                "실패: ${counts["FAILED"] ?: 0}개",
+                color = if ((counts["FAILED"] ?: 0) > 0) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurface,
+            )
+            val skipped = counts["SKIPPED"] ?: 0
+            if (skipped > 0) {
+                SummaryRow(
+                    "스킵(서버에서 삭제됨): ${skipped}개",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                val skipped = counts["SKIPPED"] ?: 0
-                if (skipped > 0) {
-                    Text(
-                        "스킵(서버에서 삭제됨): ${skipped}개",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
         }
 
         if ((counts["SKIPPED"] ?: 0) > 0) {
-            OutlinedButton(onClick = { showSkipped = true }) {
-                Text("스킵된 사진 관리 (${counts["SKIPPED"]})")
-            }
+            SecondaryActionButton(
+                "스킵된 사진 관리 (${counts["SKIPPED"]})",
+                onClick = { showSkipped = true },
+            )
         }
 
         when (val s = state) {
@@ -185,7 +179,7 @@ fun BackupScreen(engine: BackupEngine) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedButton(onClick = { engine.cancel() }) { Text("중지") }
+                SecondaryActionButton("중지", onClick = { engine.cancel() })
             }
             is BackupState.Done -> {
                 Text(
@@ -193,35 +187,32 @@ fun BackupScreen(engine: BackupEngine) {
                         " (소요 시간 ${formatElapsed(s.elapsedMillis)})",
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = { engine.start() }) { Text("다시 백업") }
-                }
+                PrimaryActionButton("다시 백업", onClick = { engine.start() })
             }
             is BackupState.Error -> {
                 Text("오류: ${s.message}", color = MaterialTheme.colorScheme.error)
-                Button(onClick = { engine.start() }) { Text("다시 시도") }
+                PrimaryActionButton("다시 시도", onClick = { engine.start() })
             }
             BackupState.Idle -> {
-                Button(onClick = { engine.start() }) { Text("지금 백업") }
+                PrimaryActionButton("지금 백업", onClick = { engine.start() })
             }
         }
 
         // 실패 이력 — 최근 몇 건은 탭에서 바로 보이고, 전체는 별도 화면에서
         if (failures.isNotEmpty()) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("실패 이력", style = MaterialTheme.typography.titleMedium)
-                    failures.take(RECENT_FAILURES_INLINE).forEach { FailureRow(it) }
-                    if (failures.size > RECENT_FAILURES_INLINE) {
-                        TextButton(onClick = { showFailures = true }) {
-                            Text("전체 보기 (${failures.size}건)")
-                        }
-                    } else {
-                        TextButton(onClick = { showFailures = true }) { Text("자세히 / 지우기") }
+            HomePhotoCard(verticalGap = 8.dp) {
+                Text(
+                    "실패 이력",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                failures.take(RECENT_FAILURES_INLINE).forEach { FailureRow(it) }
+                if (failures.size > RECENT_FAILURES_INLINE) {
+                    TextButton(onClick = { showFailures = true }) {
+                        Text("전체 보기 (${failures.size}건)")
                     }
+                } else {
+                    TextButton(onClick = { showFailures = true }) { Text("자세히 / 지우기") }
                 }
             }
         }
@@ -229,6 +220,12 @@ fun BackupScreen(engine: BackupEngine) {
 }
 
 private const val RECENT_FAILURES_INLINE = 3
+
+/** 요약 카드 한 줄 — bodyMedium(14/20, 자간 .25). 색만 상황에 따라 바꾼다. */
+@Composable
+private fun SummaryRow(text: String, color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = color)
+}
 
 private fun formatFailureTime(epochMillis: Long): String =
     java.text.SimpleDateFormat("MM/dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(epochMillis))
@@ -358,14 +355,15 @@ private fun SkippedManager(engine: BackupEngine, onClose: () -> Unit) {
                         }
                     }
                 }
-                Button(
+                PrimaryActionButton(
+                    label = "선택 ${selected.size}개 다시 올리기",
                     enabled = selected.isNotEmpty(),
                     onClick = {
                         engine.requeueAndBackup(selected.toList())
                         onClose()
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("선택 ${selected.size}개 다시 올리기") }
+                )
             }
         }
     }

@@ -10,10 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -32,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import com.chochocho.homephotoclient.backup.BackupScheduler
 import com.chochocho.homephotoclient.data.ApiFactory
 import com.chochocho.homephotoclient.data.SettingsRepository
+import com.chochocho.homephotoclient.ui.components.PrimaryActionButton
+import com.chochocho.homephotoclient.ui.components.SecondaryActionButton
 import com.chochocho.homephotoclient.data.toFriendlyMessage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -95,15 +95,16 @@ fun SettingsScreen(repository: SettingsRepository) {
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedButton(onClick = {
+                SecondaryActionButton("저장", onClick = {
                     scope.launch {
                         repository.save(serverUrl, apiKey, deviceName)
                         resultText = "저장했습니다"
                         resultOk = true
                     }
-                }) { Text("저장") }
+                })
 
-                Button(
+                PrimaryActionButton(
+                    label = if (testing) "확인 중..." else "연결 테스트",
                     enabled = !testing,
                     onClick = {
                         testing = true
@@ -124,7 +125,7 @@ fun SettingsScreen(repository: SettingsRepository) {
                             }
                         }
                     },
-                ) { Text(if (testing) "확인 중..." else "연결 테스트") }
+                )
 
                 if (testing) CircularProgressIndicator(modifier = Modifier.padding(top = 8.dp))
             }
@@ -148,6 +149,7 @@ fun SettingsScreen(repository: SettingsRepository) {
                     Text(
                         "6시간마다 · Wi-Fi · 배터리 여유 시",
                         style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 Switch(

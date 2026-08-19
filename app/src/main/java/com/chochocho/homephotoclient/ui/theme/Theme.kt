@@ -1,36 +1,11 @@
 package com.chochocho.homephotoclient.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-
-private val LightColors = lightColorScheme(
-    primary = HomePhotoColors.Teal40,
-    onPrimary = Color.White,
-    primaryContainer = HomePhotoColors.Teal90,
-    onPrimaryContainer = HomePhotoColors.Teal10,
-    secondary = HomePhotoColors.Neutral40,
-    onSecondary = Color.White,
-    secondaryContainer = HomePhotoColors.Neutral90,
-    onSecondaryContainer = HomePhotoColors.Neutral10,
-    error = HomePhotoColors.Error40,
-    onError = Color.White,
-    errorContainer = HomePhotoColors.Error90,
-    onErrorContainer = HomePhotoColors.Error10,
-    background = HomePhotoColors.SurfaceLight,
-    onBackground = HomePhotoColors.OnSurfaceLight,
-    surface = HomePhotoColors.SurfaceLight,
-    onSurface = HomePhotoColors.OnSurfaceLight,
-    surfaceVariant = HomePhotoColors.SurfaceVariantLight,
-    onSurfaceVariant = HomePhotoColors.OnSurfaceVariantLight,
-    outline = HomePhotoColors.OutlineLight,
-)
 
 private val DarkColors = darkColorScheme(
     primary = HomePhotoColors.Teal80,
@@ -81,16 +56,14 @@ object HomePhotoSpacing {
 }
 
 /**
- * 앱 전체 테마. 시스템 다크 모드를 따르며 다이내믹 컬러(Material You)는 쓰지 않는다 —
- * 사진 색감과 충돌하지 않도록 팔레트를 고정하기 위함.
+ * 앱 전체 테마. **다크 전용**이다 — 2026-08-19 다크 리디자인(1c 확장) 채택에 따라
+ * 라이트 스킴을 제거하고 시스템 설정과 무관하게 항상 다크로 고정한다.
+ * 다이내믹 컬러(Material You)도 쓰지 않는다(사진 색감과 충돌).
  */
 @Composable
-fun HomePhotoTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit,
-) {
+fun HomePhotoTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = DarkColors,
         typography = HomePhotoTypography,
         shapes = HomePhotoShapes,
         content = content,

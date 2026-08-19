@@ -25,7 +25,8 @@
 
 ## 3. 정보 구조와 네비게이션
 
-최상위는 **탭 4개** (현재 `TabRow`, 하단 `NavigationBar`로 바꾸는 것을 검토 중).
+최상위는 **탭 4개**. 2026-08-20 1c 확장 적용으로 상단 `TabRow` → **하단 라벨 내비게이션**
+(`ui/components/HomePhotoBottomNav`)으로 교체했다. 아이콘 없이 라벨만 쓰고 선택 항목은 틸이다.
 
 ```
 [사진] ── 타임라인 그리드 ─▶ 전체화면 뷰어(좌우 스와이프, 삭제)
@@ -49,28 +50,33 @@
 | 설정 | `ui/SettingsScreen.kt` | 서버 주소·API 키·기기 이름 입력, 저장, 자동 백업 토글·조건 | 저장 성공 피드백 / 연결 테스트 결과 (추가 예정) |
 | 전체화면 뷰어 | `ui/AssetBrowsing.kt` | 페이저, 파일명·촬영일, 삭제(휴지통 이동) 확인 다이얼로그 | 동영상(재생 미지원 안내) / 삭제 확인 |
 
-공용 조각(컴포넌트 후보 — 현재는 화면 안에 인라인):
-- `ThumbCell` 정사각 썸네일(+동영상 배지) — `AssetBrowsing.kt`에 있음
-- 오류 안내 블록(제목 + 설명 + 다시 시도 버튼) — 타임라인·인물에서 반복
-- 화면 제목 행(제목 + 우측 텍스트 버튼) — 모든 탭에서 반복
-- 상태 카드(라벨: 값 목록) — 백업 요약
+공용 컴포넌트 (`ui/components/Common.kt`):
+- `HomePhotoCard` 카드 — `surfaceContainer` + 1px `outline` + 12dp + 패딩 16dp
+- `ScreenTitleRow` 화면 제목 행 — 제목 + 우측 틸 텍스트 버튼
+- `MonthChipRow` / `MonthChip` 월 칩 — 선택 시 틸 테두리·글자
+- `ErrorBlock` 오류 안내 — 제목 + 설명 + 다시 시도
+- `PrimaryActionButton` / `SecondaryActionButton` — 채움 / 테두리 버튼
+- `HomePhotoBottomNav` 하단 내비게이션
+- `ThumbCell` 정사각 썸네일(+동영상 배지) — `AssetBrowsing.kt`
+
+1c 확장의 실측값과 구현·검증 상태는 [design-1c.md](design-1c.md)에 정리했다.
 
 ## 5. 디자인 토큰 (코드 기준: `ui/theme/`)
 
 | 항목 | 값 | 파일 |
 |---|---|---|
 | 포인트 색 | 틸 `#00696B`(라이트) / `#4FD8DA`(다크) | `Color.kt` |
-| 배경/표면 | `#FAFAF8`(라이트) / `#0F0F11`(다크). 뷰어만 `#000000` | `Color.kt` |
-| 카드/올림면(다크) | `#17171A` (`surfaceContainer`). Card 는 `surface` 가 아니라 `surfaceContainer*` 역할을 쓴다 | `Theme.kt` |
-| 경계선(다크) | `#232326` (`outline`) — 아주 낮은 대비가 의도. 구분선·칩 테두리·탭 하단선 | `Color.kt` |
+| 배경/표면 | `#0F0F11`. 뷰어만 `#000000` | `Color.kt` |
+| 카드/올림면 | `#17171A` (`surfaceContainer`). Card 는 `surface` 가 아니라 `surfaceContainer*` 역할을 쓴다 | `Theme.kt` |
+| 경계선 | `#232326` (`outline`) — 아주 낮은 대비가 의도. 구분선·칩 테두리·탭 하단선 | `Color.kt` |
 | 오류 | M3 기본 레드 `#BA1A1A` | `Color.kt` |
 | 오버레이 텍스트 | 흰색 / `#BDBDBD` / 경고 `#FFD54F` | `Color.kt` |
-| 오류 텍스트(다크) | `#FFB4AB` — 실패 건수, 실패 사유 | `Color.kt` |
+| 오류 텍스트 | `#FFB4AB` — 실패 건수, 실패 사유 | `Color.kt` |
 | 선택 탭 표시 | 틸 텍스트 + 하단 2dp 틸 인디케이터 | — |
-| 타이포 | 시스템 기본 글꼴. headlineSmall 24/SemiBold, titleMedium 16/SemiBold, bodyMedium 14, bodySmall 12 | `Type.kt` |
+| 타이포 | 시스템 기본 글꼴. headlineSmall 24/SemiBold, titleMedium 16/SemiBold, bodyMedium 14, bodySmall 12, labelMedium 13(월 칩), labelSmall 12(내비) | `Type.kt` |
 | 모서리 | 카드·다이얼로그 12dp, 버튼·칩 8dp, 썸네일 0 | `Theme.kt` |
 | 간격 | 화면 여백 16, 섹션 12, 항목 8, 그리드 틈 2 | `Theme.kt` `HomePhotoSpacing` |
-| 다크 모드 | 시스템 설정을 따름. 별도 토글 없음 | `Theme.kt` |
+| 다크 모드 | **다크 전용**. 라이트 스킴을 제거해 시스템 설정과 무관하게 항상 다크 | `Theme.kt` |
 
 규칙: 화면 코드에서 `Color(0x...)`, `.dp` 숫자 하드코딩을 새로 만들지 말고
 `MaterialTheme.colorScheme.*`, `MaterialTheme.typography.*`, `HomePhotoSpacing.*`을 쓴다.

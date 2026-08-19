@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -46,6 +45,8 @@ import com.chochocho.homephotoclient.data.ClusterDto
 import com.chochocho.homephotoclient.data.HomePhotoApi
 import com.chochocho.homephotoclient.data.NameClusterRequest
 import com.chochocho.homephotoclient.data.SettingsRepository
+import com.chochocho.homephotoclient.ui.components.ErrorBlock
+import com.chochocho.homephotoclient.ui.components.ScreenTitleRow
 import com.chochocho.homephotoclient.data.toFriendlyMessage
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -87,26 +88,19 @@ fun PeopleScreen(repository: SettingsRepository) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("인물", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
-            TextButton(onClick = { refreshKey++ }) { Text("새로고침") }
-        }
+        ScreenTitleRow(
+            title = "인물",
+            actionLabel = "새로고침",
+            onAction = { refreshKey++ },
+        )
 
         when {
             error != null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(horizontal = 32.dp),
-                ) {
-                    Text(error!!, textAlign = TextAlign.Center)
-                    Button(onClick = { refreshKey++ }) { Text("다시 시도") }
-                }
+                ErrorBlock(
+                    title = "인물을 불러올 수 없어요",
+                    message = error!!,
+                    onRetry = { refreshKey++ },
+                )
             }
 
             clusters == null -> Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

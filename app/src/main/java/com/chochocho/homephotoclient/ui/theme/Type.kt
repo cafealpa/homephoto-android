@@ -59,4 +59,18 @@ val HomePhotoTypography = Typography(
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp,
     ),
+    // 월 칩 (1c 확장) — 선택된 칩은 FontWeight.Medium 으로 올려 쓴다
+    labelMedium = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+    ),
+    // 하단 내비게이션 라벨 (1c 확장) — 선택된 항목은 FontWeight.Medium
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+    ),
 )
