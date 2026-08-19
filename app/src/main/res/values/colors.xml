@@ -4,7 +4,7 @@
     <color name="brand_teal">#FF00696B</color>
     <color name="brand_teal_dark">#FF4FD8DA</color>
     <color name="surface_light">#FFFAFAF8</color>
-    <color name="surface_dark">#FF121414</color>
+    <color name="surface_dark">#FF0F0F11</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

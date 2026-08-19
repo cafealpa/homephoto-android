@@ -29,12 +29,20 @@ object HomePhotoColors {
     val OnSurfaceVariantLight = Color(0xFF3F4949)
     val OutlineLight = Color(0xFF6F7979)
 
-    // 표면(다크) — 순흑 대신 아주 어두운 회색. 전체화면 뷰어만 순흑.
-    val SurfaceDark = Color(0xFF121414)
-    val SurfaceVariantDark = Color(0xFF3F4949)
-    val OnSurfaceDark = Color(0xFFE1E3E3)
-    val OnSurfaceVariantDark = Color(0xFFBEC9C9)
-    val OutlineDark = Color(0xFF899393)
+    // 표면(다크) — 2026-08-19 다크 리디자인 기준. 틸 기미를 뺀 중립 무채색으로,
+    // 배경 → 카드는 아주 좁은 단계로만 올리고 경계선은 눈에 거의 띄지 않게 둔다.
+    // 전체화면 뷰어만 순흑(ViewerBackground).
+    val SurfaceDark = Color(0xFF0F0F11)              // 화면 배경
+    val SurfaceContainerLowestDark = Color(0xFF0B0B0D)
+    val SurfaceContainerLowDark = Color(0xFF141417)
+    val SurfaceContainerDark = Color(0xFF17171A)     // 카드 (백업 요약, 실패 이력)
+    val SurfaceContainerHighDark = Color(0xFF1D1D21)
+    val SurfaceContainerHighestDark = Color(0xFF232326)
+    val SurfaceVariantDark = Color(0xFF17171A)
+    val OnSurfaceDark = Color(0xFFE1E3E3)            // 본문
+    val OnSurfaceVariantDark = Color(0xFFBEC9C9)     // 보조 텍스트, 비선택 탭
+    val OutlineDark = Color(0xFF232326)              // 경계선 · 구분선 · 칩 테두리
+    val OutlineVariantDark = Color(0xFF1D1D21)
 
     // 오류 (M3 기본값과 동일 — 백업 실패 건수 등)
     val Error10 = Color(0xFF410002)

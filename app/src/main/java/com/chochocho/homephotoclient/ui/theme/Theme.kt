@@ -52,6 +52,14 @@ private val DarkColors = darkColorScheme(
     surfaceVariant = HomePhotoColors.SurfaceVariantDark,
     onSurfaceVariant = HomePhotoColors.OnSurfaceVariantDark,
     outline = HomePhotoColors.OutlineDark,
+    outlineVariant = HomePhotoColors.OutlineVariantDark,
+    // Card·Surface 는 surface 가 아니라 surfaceContainer* 역할을 쓴다. 지정하지 않으면
+    // M3 기본 팔레트(보라 기미 회색)가 그대로 나오므로 반드시 함께 덮어쓴다.
+    surfaceContainerLowest = HomePhotoColors.SurfaceContainerLowestDark,
+    surfaceContainerLow = HomePhotoColors.SurfaceContainerLowDark,
+    surfaceContainer = HomePhotoColors.SurfaceContainerDark,
+    surfaceContainerHigh = HomePhotoColors.SurfaceContainerHighDark,
+    surfaceContainerHighest = HomePhotoColors.SurfaceContainerHighestDark,
 )
 
 /** 모서리: 카드/다이얼로그 12dp, 칩·버튼 8dp, 썸네일 셀은 0(그리드 밀착). */
