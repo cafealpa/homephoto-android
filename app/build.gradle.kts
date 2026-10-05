@@ -15,14 +15,27 @@ android {
         applicationId = "com.chochocho.homephotoclient"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val releaseKeystore = providers.environmentVariable("HOMEPHOTO_KEYSTORE").orNull
+    if (!releaseKeystore.isNullOrBlank()) {
+        signingConfigs {
+            create("production") {
+                storeFile = file(releaseKeystore)
+                storePassword = providers.environmentVariable("HOMEPHOTO_STORE_PASSWORD").get()
+                keyAlias = providers.environmentVariable("HOMEPHOTO_KEY_ALIAS").get()
+                keyPassword = providers.environmentVariable("HOMEPHOTO_KEY_PASSWORD").get()
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (!releaseKeystore.isNullOrBlank()) signingConfig = signingConfigs.getByName("production")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

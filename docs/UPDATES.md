@@ -24,7 +24,7 @@
 4. 출력된 `build/apk-release/{versionCode}/homephoto-android-{versionCode}.apk`를 `cafealpa/homephoto-android`의 정식 GitHub Release에 첨부한다. SHA-256 파일은 수동 검증용으로 함께 첨부할 수 있다.
 5. 공개 전에 파일명, 버전, 서명, GitHub 자산 digest를 확인한다. 스크립트는 업로드나 공개를 실행하지 않는다.
 
-현재 저장소에는 release 서명 설정이 없으므로 Android Studio에서 키를 지정해야 한다. debug 키로 설치된 앱은 다른 release 키로 업데이트할 수 없다. 업데이트 기능이 없는 구버전에서는 이 기능이 포함된 앱을 한 번 직접 설치해야 한다.
+명령줄 서명은 `HOMEPHOTO_KEYSTORE`, `HOMEPHOTO_STORE_PASSWORD`, `HOMEPHOTO_KEY_ALIAS`, `HOMEPHOTO_KEY_PASSWORD` 환경변수를 지정한 프로세스에서 `:app:assembleRelease`로 실행한다. 키를 지정하지 않은 release 빌드는 unsigned이며 공개할 수 없다. Android Studio에서 기존 키를 지정해 빌드해도 된다. debug 키로 설치된 앱은 다른 release 키로 업데이트할 수 없다. 업데이트 기능이 없는 구버전에서는 이 기능이 포함된 앱을 한 번 직접 설치해야 한다.
 
 ## 설치 실패/취소와 재사용
 
@@ -48,3 +48,13 @@
 - 릴리즈 준비 스크립트의 debug APK 거부 확인.
 - Android 34 에뮬레이터에서 테스트 APK를 다운로드 완료 상태로 준비하고 네트워크를 끈 상태로 설치 권한 안내 → 설치 창 → 취소 → 앱 강제 종료/재실행 → 같은 APK 재설치 → versionCode 1에서 2로 업데이트 성공 확인.
 - 실제 공개 GitHub 릴리즈 조회 성공(검증 시점 릴리즈 0개). 공개 APK의 실제 다운로드·릴리즈 서명 키·사용자 휴대폰 업데이트는 아직 검증하지 않았다.
+
+## 로컬 서명 설정으로 빌드
+
+`build-release.ps1`은 기본적으로 `%USERPROFILE%/.android/homephoto-release/signing.json`의 `keystore`, `alias`, `storePassword`, `keyPassword`를 읽어 테스트·서명 빌드·릴리즈 파일 준비를 실행한다. `-SigningConfig`로 다른 로컬 파일을 지정할 수 있다. 이 JSON과 키는 비밀 파일이며 Git/릴리즈에 첨부하지 않는다. 키와 설정 파일을 함께 별도 안전한 위치에 백업해야 이후 같은 서명으로 업데이트할 수 있다.
+
+```powershell
+.\build-release.ps1
+```
+
+1.1.0(2)은 새 정식 서명 키를 사용하는 첫 공개 버전이다. 이전 개발용 앱과 서명이 다르면 덮어 설치가 거부될 수 있다. 앱 삭제 시 로컬 설정·백업 이력이 초기화되므로 기존 데이터 상태를 확인한 뒤 전환해야 한다. 1.1.0 이후는 이 정식 키를 계속 사용한다.
