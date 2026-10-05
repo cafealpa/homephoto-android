@@ -2,61 +2,83 @@ package com.chochocho.homephotoclient
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import com.chochocho.homephotoclient.backup.BackupEngine
 import com.chochocho.homephotoclient.data.SettingsRepository
-import com.chochocho.homephotoclient.ui.BackupScreen
-import com.chochocho.homephotoclient.ui.PeopleScreen
-import com.chochocho.homephotoclient.ui.SettingsScreen
-import com.chochocho.homephotoclient.ui.TimelineScreen
-import com.chochocho.homephotoclient.ui.components.HomePhotoBottomNav
+import com.chochocho.homephotoclient.ui.*
+import com.chochocho.homephotoclient.ui.theme.HomePhotoSpacing
 import com.chochocho.homephotoclient.ui.theme.HomePhotoTheme
 
 class MainActivity : ComponentActivity() {
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // targetSdk 35+ 강제 edge-to-edge에서 상태바 아이콘 색 지정.
-        // 앱이 다크 전용이므로 항상 밝은 아이콘이 필요하다.
-        enableEdgeToEdge()
-        val settingsRepository = SettingsRepository(applicationContext)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
+        val repository = SettingsRepository(applicationContext)
         val backupEngine = BackupEngine.get(applicationContext)
-
         setContent {
             HomePhotoTheme {
-                var selectedTab by remember { mutableIntStateOf(0) }
-                val tabs = listOf("사진", "인물", "백업", "설정")
-
-                // 1c 확장: 상단 TabRow 대신 하단 라벨 내비게이션.
+                var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+                var settingsOpen by rememberSaveable { mutableStateOf(false) }
+                val screenStates = rememberSaveableStateHolder()
+                val tabs = listOf("홈", "사진", "검색", "인물", "백업")
+                val icons = listOf(R.drawable.ic_home, R.drawable.ic_photos, R.drawable.ic_search, R.drawable.ic_people, R.drawable.ic_backup)
+                BackHandler(enabled = settingsOpen || selectedTab != 0) {
+                    if (settingsOpen) settingsOpen = false else selectedTab = 0
+                }
                 Scaffold(
+                    topBar = {
+                        Row(
+                            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = HomePhotoSpacing.screen),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (settingsOpen) TextButton(onClick = { settingsOpen = false }) { Text("뒤로") }
+                            Text("HomePhoto", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                            if (!settingsOpen) IconButton(onClick = { settingsOpen = true }) {
+                                Icon(painterResource(R.drawable.ic_settings), contentDescription = "설정")
+                            }
+                        }
+                    },
                     bottomBar = {
-                        HomePhotoBottomNav(
-                            tabs = tabs,
-                            selectedIndex = selectedTab,
-                            onSelect = { selectedTab = it },
-                        )
+                        if (!settingsOpen) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow) {
+                            tabs.forEachIndexed { index, label ->
+                                NavigationBarItem(
+                                    selected = selectedTab == index,
+                                    onClick = { selectedTab = index },
+                                    icon = { Icon(painterResource(icons[index]), contentDescription = null) },
+                                    label = { Text(label) },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                    ),
+                                )
+                            }
+                        }
                     },
                 ) { innerPadding ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        when (selectedTab) {
-                            0 -> TimelineScreen(repository = settingsRepository)
-                            1 -> PeopleScreen(repository = settingsRepository)
-                            2 -> BackupScreen(engine = backupEngine)
-                            else -> SettingsScreen(repository = settingsRepository)
+                    Box(Modifier.fillMaxSize().padding(innerPadding)) {
+                        screenStates.SaveableStateProvider(if (settingsOpen) "settings" else "tab-$selectedTab") {
+                            if (settingsOpen) SettingsScreen(repository) else when (selectedTab) {
+                                0 -> HomeScreen(repository, onPhotos = { selectedTab = 1 }, onPeople = { selectedTab = 3 }, onBackup = { selectedTab = 4 })
+                                1 -> TimelineScreen(repository)
+                                2 -> SearchScreen(repository, onPeople = { selectedTab = 3 })
+                                3 -> PeopleScreen(repository)
+                                else -> BackupScreen(backupEngine)
+                            }
                         }
                     }
                 }

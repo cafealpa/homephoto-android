@@ -137,7 +137,7 @@ fun PeopleScreen(repository: SettingsRepository) {
 }
 
 @Composable
-private fun ClusterCell(cluster: ClusterDto, baseUrl: String, apiKey: String, onClick: () -> Unit) {
+internal fun ClusterCell(cluster: ClusterDto, baseUrl: String, apiKey: String, onClick: () -> Unit) {
     val context = LocalContext.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -169,7 +169,7 @@ private fun ClusterCell(cluster: ClusterDto, baseUrl: String, apiKey: String, on
 }
 
 @Composable
-private fun PersonDetailScreen(
+internal fun PersonDetailScreen(
     api: HomePhotoApi,
     cfg: AppSettings,
     cluster: ClusterDto,

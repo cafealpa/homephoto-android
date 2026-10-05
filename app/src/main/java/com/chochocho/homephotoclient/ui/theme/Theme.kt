@@ -53,6 +53,9 @@ object HomePhotoSpacing {
     val item = 8.dp
     val tight = 4.dp
     val grid = 2.dp
+    val spacious = 24.dp
+    val avatar = 72.dp
+    val touchTarget = 48.dp
 }
 
 /**

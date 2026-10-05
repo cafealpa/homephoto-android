@@ -26,6 +26,11 @@ data class AssetDto(
     val height: Int?,
 )
 data class AssetPageDto(val items: List<AssetDto>, val nextCursor: String?)
+data class PhotoSearchDto(
+    val items: List<AssetDto>,
+    @com.google.gson.annotations.SerializedName("indexed_photos") val indexedPhotos: Long,
+    val approximate: Boolean,
+)
 data class CheckRequest(val hashes: List<String>)
 data class CheckResponse(
     val missing: List<String>,
@@ -48,6 +53,14 @@ data class BackupCapacity(val accepting: Boolean, val reason: String?, val retry
 interface HomePhotoApi {
     @GET("api/v1/backup-capacity")
     suspend fun backupCapacity(@retrofit2.http.Query("bytes") bytes: Long): Response<BackupCapacity>
+    @GET("api/v1/photos/search")
+    suspend fun searchPhotos(
+        @retrofit2.http.Query("query") query: String,
+        @retrofit2.http.Query("start_date") startDate: String? = null,
+        @retrofit2.http.Query("end_date") endDate: String? = null,
+        @retrofit2.http.Query("limit") limit: Int = 24,
+    ): PhotoSearchDto
+
     @GET("api/v1/months")
     suspend fun months(): List<MonthDto>
 

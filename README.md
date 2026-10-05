@@ -23,7 +23,7 @@ git에 올라가지 않는다. 명령줄:
 ./gradlew :app:assembleDebug
 ```
 
-첫 실행 후 **설정** 탭에서 서버 주소(`http://내부IP:8080`)와 API 키를 입력한다.
+첫 실행 후 **상단 설정 버튼**에서 서버 주소(`http://내부IP:8080`)와 API 키를 입력한다.
 집 LAN의 서버가 평문 http라서 `res/xml/network_security_config.xml`이 cleartext를 허용한다
 (외부 공개 시 제거).
 
@@ -31,9 +31,11 @@ git에 올라가지 않는다. 명령줄:
 
 ```
 app/src/main/java/com/chochocho/homephotoclient/
-├─ MainActivity.kt          탭 4개(사진·인물·백업·설정) 라우팅, HomePhotoTheme 적용
+├─ MainActivity.kt          탭 5개(홈·사진·검색·인물·백업), 상단 설정 라우팅, HomePhotoTheme 적용
 ├─ ui/
 │  ├─ theme/                Color.kt · Type.kt · Theme.kt — 디자인 토큰 (여기만 색·간격 정의)
+│  ├─ HomeScreen.kt         가족 앨범형 홈, 대표 사진·인물·최근 사진
+│  ├─ SearchScreen.kt       문장 검색·월별 탐색·인물 바로가기
 │  ├─ TimelineScreen.kt     월별 썸네일 그리드
 │  ├─ PeopleScreen.kt       인물 그리드 → 인물 상세, 이름 붙이기
 │  ├─ BackupScreen.kt       백업 요약·진행·실패 이력·스킵 관리
@@ -48,5 +50,5 @@ app/src/main/java/com/chochocho/homephotoclient/
 
 - 색·글꼴·모서리·간격은 `ui/theme/`의 토큰만 사용. 화면 코드에 `Color(0x...)` 새로 쓰지 않기
 - 사진 위 오버레이 텍스트만 `HomePhotoColors.Overlay*` 직접 사용 허용
-- 다크 모드는 시스템 설정을 따르며 다이내믹 컬러는 사용하지 않음
+- 다크 전용이며 다이내믹 컬러는 사용하지 않음
 - 문구는 한국어, 버튼은 짧은 명령형("저장", "다시 시도"), 오류는 "~할 수 없어요" + 할 일
