@@ -10,6 +10,20 @@ import java.util.concurrent.TimeUnit
 
 /** 자동 백업 스케줄 관리: 6시간마다, Wi-Fi(비과금)·배터리 여유 조건. */
 object BackupScheduler {
+    private const val SPACE_WAIT_WORK = "backup-storage-wait"
+
+    fun waitForStorage(context: Context) {
+        val request = androidx.work.OneTimeWorkRequestBuilder<BackupWorker>()
+            .setInputData(androidx.work.workDataOf("storageWait" to true))
+            .setInitialDelay(5, TimeUnit.MINUTES)
+            .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.UNMETERED)
+                .setRequiresBatteryNotLow(true).build())
+            .build()
+        WorkManager.getInstance(context).enqueueUniqueWork(SPACE_WAIT_WORK, androidx.work.ExistingWorkPolicy.KEEP, request)
+    }
+
+    fun cancelStorageWait(context: Context) { WorkManager.getInstance(context).cancelUniqueWork(SPACE_WAIT_WORK) }
 
     private const val WORK_NAME = "auto-backup"
 
@@ -20,6 +34,7 @@ object BackupScheduler {
             return
         }
         val request = PeriodicWorkRequestBuilder<BackupWorker>(6, TimeUnit.HOURS)
+            .setBackoffCriteria(androidx.work.BackoffPolicy.EXPONENTIAL, 5, TimeUnit.MINUTES)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.UNMETERED)

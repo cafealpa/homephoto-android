@@ -44,7 +44,8 @@ class BackupWorker(appContext: Context, params: WorkerParameters) :
                     is BackupState.Done -> {
                         if (result.failed > 0 && runAttemptCount < 2) Result.retry() else Result.success()
                     }
-                    is BackupState.Error -> if (runAttemptCount < 2) Result.retry() else Result.failure()
+                    is BackupState.WaitingForStorage -> Result.retry()
+                    is BackupState.Error -> if (inputData.getBoolean("storageWait", false) || runAttemptCount < 2) Result.retry() else Result.failure()
                     else -> Result.success()
                 }
             } finally {

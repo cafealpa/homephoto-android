@@ -43,7 +43,11 @@ fun CheckResponse.storedHashes(requested: List<String>): List<String> {
 data class ClusterDto(val clusterId: Int, val faceCount: Long, val coverFaceId: Long, val name: String?)
 data class NameClusterRequest(val name: String)
 
+data class BackupCapacity(val accepting: Boolean, val reason: String?, val retryAfterSeconds: Int = 300)
+
 interface HomePhotoApi {
+    @GET("api/v1/backup-capacity")
+    suspend fun backupCapacity(@retrofit2.http.Query("bytes") bytes: Long): Response<BackupCapacity>
     @GET("api/v1/months")
     suspend fun months(): List<MonthDto>
 

@@ -69,6 +69,7 @@ sealed interface BackupState {
         val serverQueued: Int = 0,
     ) : BackupState
     data class Error(val message: String) : BackupState
+    data class WaitingForStorage(val message: String) : BackupState
 }
 
 class BackupEngine private constructor(
@@ -115,7 +116,7 @@ class BackupEngine private constructor(
         if (job?.isActive == true) return
         job = scope.launch {
             try {
-                runBackupOnce()
+                if (runBackupOnce() is BackupState.WaitingForStorage) BackupScheduler.waitForStorage(context)
             } catch (_: CancellationException) {
                 // 사용자가 중지한 경우 — 상태는 runBackupOnce에서 Idle로 정리됨
             }
@@ -124,6 +125,8 @@ class BackupEngine private constructor(
 
     fun cancel() {
         job?.cancel()
+        BackupScheduler.cancelStorageWait(context)
+        if (_state.value is BackupState.WaitingForStorage) _state.value = BackupState.Idle
     }
 
     /** 스킵된(서버에서 삭제된) 항목 목록 */
@@ -205,6 +208,7 @@ class BackupEngine private constructor(
 
             // 4. 업로드 (RESTORE = 서버에서 삭제됐지만 사용자가 다시 올리기로 한 항목)
             val toUpload = db.itemsWithStatus("HASHED", "FAILED", "RESTORE").filter { it.hash != null }
+            if (toUpload.isNotEmpty()) checkUploadCapacity(api.backupCapacity(0))
             val uploaded = java.util.concurrent.atomic.AtomicInteger(0)
             val failed = java.util.concurrent.atomic.AtomicInteger(0)
             val progressLock = Any()
@@ -245,6 +249,7 @@ class BackupEngine private constructor(
                     }
                     coroutineContext.ensureActive()
                     when (response.code()) {
+                        507 -> throw ServerStorageWait("서버 공간 확보 대기 중입니다. 공간이 확보되면 자동으로 다시 시도합니다.")
                         202 -> db.updateStatus(item.uri, "SERVER_QUEUED")
                         201, 409 -> { db.updateStatus(item.uri, "UPLOADED"); uploaded.incrementAndGet() }
                         400 -> {
@@ -262,6 +267,8 @@ class BackupEngine private constructor(
                             failed.incrementAndGet()
                         }
                     }
+                } catch (e: ServerStorageWait) {
+                    throw e // 다른 병렬 업로드도 취소하고 파일 상태는 대기로 유지한다.
                 } catch (e: CancellationException) {
                     throw e // 취소는 실패가 아니다
                 } catch (e: Exception) {
@@ -287,6 +294,9 @@ class BackupEngine private constructor(
                 serverQueued = _counts.value["SERVER_QUEUED"] ?: 0)
             _state.value = done
             return done
+        } catch (e: ServerStorageWait) {
+            _counts.value = db.counts()
+            return BackupState.WaitingForStorage(e.message.orEmpty()).also { _state.value = it }
         } catch (e: CancellationException) {
             _state.value = BackupState.Idle
             throw e
@@ -335,6 +345,7 @@ class BackupEngine private constructor(
             coroutineContext.ensureActive()
             try {
                 val uri = Uri.parse(item.uri)
+                checkUploadCapacity(api.backupCapacity(item.size + 65_536))
                 val mime = context.contentResolver.getType(uri) ?: "application/octet-stream"
                 val filePart = MultipartBody.Part.createFormData(
                     "file", item.displayName,

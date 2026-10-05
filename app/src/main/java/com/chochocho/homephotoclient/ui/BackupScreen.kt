@@ -193,6 +193,12 @@ fun BackupScreen(engine: BackupEngine) {
                 )
                 PrimaryActionButton("다시 백업", onClick = { engine.start() })
             }
+            is BackupState.WaitingForStorage -> {
+                Text(s.message, color = MaterialTheme.colorScheme.primary)
+                Text("기기 사진은 유지됩니다. Wi-Fi 연결과 배터리 여유가 있을 때 공간을 다시 확인하고 자동 재개합니다.")
+                PrimaryActionButton("지금 다시 확인", onClick = { engine.start() })
+                SecondaryActionButton("자동 재개 취소", onClick = { engine.cancel() })
+            }
             is BackupState.Error -> {
                 Text("오류: ${s.message}", color = MaterialTheme.colorScheme.error)
                 PrimaryActionButton("다시 시도", onClick = { engine.start() })
