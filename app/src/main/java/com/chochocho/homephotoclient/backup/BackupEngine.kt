@@ -103,6 +103,7 @@ class BackupEngine private constructor(
     }
 
     /** 실패 이력을 남기고(사유 포함) 목록을 갱신한다 */
+    @Synchronized
     private fun recordFailure(displayName: String, stage: String, message: String) {
         db.logFailure(displayName, stage, message)
         _failures.value = db.failureLog()
@@ -198,8 +199,11 @@ class BackupEngine private constructor(
 
             // 4. 업로드 (RESTORE = 서버에서 삭제됐지만 사용자가 다시 올리기로 한 항목)
             val toUpload = db.itemsWithStatus("HASHED", "FAILED", "RESTORE").filter { it.hash != null }
-            var uploaded = 0
-            var failed = 0
+            val uploaded = java.util.concurrent.atomic.AtomicInteger(0)
+            val failed = java.util.concurrent.atomic.AtomicInteger(0)
+            val progressLock = Any()
+            val active = linkedMapOf<String, String>()
+            var completed = 0
             val uploadStart = System.currentTimeMillis()
             val bytesSent = java.util.concurrent.atomic.AtomicLong(0)
             val lastSpeedPush = java.util.concurrent.atomic.AtomicLong(0)
@@ -207,9 +211,20 @@ class BackupEngine private constructor(
                 val elapsed = (System.currentTimeMillis() - uploadStart).coerceAtLeast(1)
                 return bytesSent.get() * 1000 / elapsed
             }
-            toUpload.forEachIndexed { i, item ->
+            // progressLock 안에서 호출: 완료 수와 진행 중인 파일 표시가 역행하지 않게 한다.
+            fun publishProgress() {
+                _state.value = BackupState.Working(
+                    "업로드", completed, toUpload.size,
+                    active.values.joinToString(" · ").takeIf { it.isNotEmpty() },
+                    speedNow(), startedAtMillis = runStart,
+                )
+            }
+            parallelUploads(toUpload) { item ->
                 coroutineContext.ensureActive()
-                _state.value = BackupState.Working("업로드", i + 1, toUpload.size, item.displayName, speedNow(), startedAtMillis = runStart)
+                synchronized(progressLock) {
+                    active[item.uri] = item.displayName
+                    publishProgress()
+                }
                 try {
                     // 전송 중에도 0.5초마다 속도를 갱신한다 (대용량 동영상 대비)
                     val response = uploadWithRetry(api, item) { chunkBytes ->
@@ -217,41 +232,51 @@ class BackupEngine private constructor(
                         val now = System.currentTimeMillis()
                         val last = lastSpeedPush.get()
                         if (now - last > 500 && lastSpeedPush.compareAndSet(last, now)) {
-                            _state.value = BackupState.Working("업로드", i + 1, toUpload.size, item.displayName, speedNow(), startedAtMillis = runStart)
+                            synchronized(progressLock) {
+                                if (item.uri in active) publishProgress()
+                            }
                         }
                     }
+                    coroutineContext.ensureActive()
                     when (response.code()) {
-                        201, 409 -> { db.updateStatus(item.uri, "UPLOADED"); uploaded++ }
+                        201, 409 -> { db.updateStatus(item.uri, "UPLOADED"); uploaded.incrementAndGet() }
                         400 -> {
                             // 해시 불일치 — 저장된 해시가 낡았을 가능성(예: GPS 보존 변경 전 계산).
                             // NEW로 되돌려 다음 실행에서 해시를 재계산하게 한다.
                             val reason = "해시 재계산 예정 (서버와 불일치)"
                             db.updateStatus(item.uri, "NEW", reason)
                             recordFailure(item.displayName, "업로드", "$reason — ${serverErrorMessage(response)}")
-                            failed++
+                            failed.incrementAndGet()
                         }
                         else -> {
                             val reason = serverErrorMessage(response)
                             db.updateStatus(item.uri, "FAILED", reason)
                             recordFailure(item.displayName, "업로드", reason)
-                            failed++
+                            failed.incrementAndGet()
                         }
                     }
                 } catch (e: CancellationException) {
                     throw e // 취소는 실패가 아니다
                 } catch (e: Exception) {
+                    coroutineContext.ensureActive()
                     // 친절한 설명 + 원래 예외 메시지 (원인 추적용)
                     val detail = e.message?.take(200) ?: e.javaClass.simpleName
                     val reason = "${e.toFriendlyMessage()} ($detail)"
                     db.updateStatus(item.uri, "FAILED", reason)
                     recordFailure(item.displayName, "업로드", reason)
-                    failed++
+                    failed.incrementAndGet()
+                } finally {
+                    synchronized(progressLock) { active.remove(item.uri) }
                 }
-                if ((i + 1) % 10 == 0) _counts.value = db.counts()
+                synchronized(progressLock) {
+                    completed++
+                    if (completed % 10 == 0) _counts.value = db.counts()
+                    publishProgress()
+                }
             }
 
             _counts.value = db.counts()
-            val done = BackupState.Done(uploaded, skippedThisRun, failed, System.currentTimeMillis() - runStart)
+            val done = BackupState.Done(uploaded.get(), skippedThisRun, failed.get(), System.currentTimeMillis() - runStart)
             _state.value = done
             return done
         } catch (e: CancellationException) {
