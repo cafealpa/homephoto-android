@@ -14,6 +14,7 @@ import com.chochocho.homephotoclient.data.SettingsRepository
 import com.chochocho.homephotoclient.data.local.BackupDb
 import com.chochocho.homephotoclient.data.local.FailureEntry
 import com.chochocho.homephotoclient.data.toFriendlyMessage
+import com.chochocho.homephotoclient.data.storedHashes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,6 +66,7 @@ sealed interface BackupState {
         val alreadyOnServer: Int,
         val failed: Int,
         val elapsedMillis: Long = 0L,
+        val serverQueued: Int = 0,
     ) : BackupState
     data class Error(val message: String) : BackupState
 }
@@ -175,21 +177,25 @@ class BackupEngine private constructor(
             //    서버에서 사라진 건(서버 데이터 유실/이전) 재업로드 대기로 되돌린다.
             _state.value = BackupState.Working("서버 대조", 0, 0, null, startedAtMillis = runStart)
             val pendingHashes = db.itemsWithStatus("HASHED", "FAILED").mapNotNull { it.hash }.toSet()
-            val candidates = db.itemsWithStatus("HASHED", "FAILED", "UPLOADED", "SKIPPED")
+            val candidates = db.itemsWithStatus("HASHED", "FAILED", "UPLOADED", "SKIPPED", "SERVER_QUEUED")
                 .mapNotNull { it.hash }.distinct()
             val onServer = mutableSetOf<String>()
             val missingOnServer = mutableSetOf<String>()
             val deletedOnServer = mutableSetOf<String>()
+            val queuedOnServer = mutableSetOf<String>()
             candidates.chunked(500).forEach { chunk ->
                 coroutineContext.ensureActive()
                 val response = api.check(CheckRequest(chunk))
                 val missing = response.missing.toSet()
                 val deleted = (response.deleted ?: emptyList()).toSet()
+                val queued = response.queued.orEmpty().toSet()
                 missingOnServer += missing
                 deletedOnServer += deleted
-                onServer += chunk.filterNot { it in missing || it in deleted }
+                queuedOnServer += queued
+                onServer += response.storedHashes(chunk)
             }
             db.markUploadedByHashes(onServer)
+            db.markUploadedByHashes(queuedOnServer, "SERVER_QUEUED")
             // 서버에서 삭제된 사진은 스킵 처리 (백업 탭의 스킵 관리에서 되살릴 수 있음)
             db.markSkippedByHashes(deletedOnServer)
             db.revertToHashedByHashes(missingOnServer)
@@ -239,6 +245,7 @@ class BackupEngine private constructor(
                     }
                     coroutineContext.ensureActive()
                     when (response.code()) {
+                        202 -> db.updateStatus(item.uri, "SERVER_QUEUED")
                         201, 409 -> { db.updateStatus(item.uri, "UPLOADED"); uploaded.incrementAndGet() }
                         400 -> {
                             // 해시 불일치 — 저장된 해시가 낡았을 가능성(예: GPS 보존 변경 전 계산).
@@ -276,7 +283,8 @@ class BackupEngine private constructor(
             }
 
             _counts.value = db.counts()
-            val done = BackupState.Done(uploaded.get(), skippedThisRun, failed.get(), System.currentTimeMillis() - runStart)
+            val done = BackupState.Done(uploaded.get(), skippedThisRun, failed.get(), System.currentTimeMillis() - runStart,
+                serverQueued = _counts.value["SERVER_QUEUED"] ?: 0)
             _state.value = done
             return done
         } catch (e: CancellationException) {
@@ -321,7 +329,7 @@ class BackupEngine private constructor(
         api: com.chochocho.homephotoclient.data.HomePhotoApi,
         item: com.chochocho.homephotoclient.data.local.LocalAsset,
         onBytes: (Long) -> Unit = {},
-    ): retrofit2.Response<com.chochocho.homephotoclient.data.AssetDto> {
+    ): retrofit2.Response<com.chochocho.homephotoclient.data.UploadReceipt> {
         var lastError: IOException? = null
         repeat(MAX_UPLOAD_ATTEMPTS) { attempt ->
             coroutineContext.ensureActive()

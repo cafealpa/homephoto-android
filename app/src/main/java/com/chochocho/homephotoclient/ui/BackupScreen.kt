@@ -124,6 +124,10 @@ fun BackupScreen(engine: BackupEngine) {
             val total = counts.values.sum()
             SummaryRow("발견된 파일: ${total}개")
             SummaryRow("백업 완료: ${counts["UPLOADED"] ?: 0}개")
+            if ((counts["SERVER_QUEUED"] ?: 0) > 0) {
+                SummaryRow("서버 수신 완료 · 원본 저장 대기: ${counts["SERVER_QUEUED"]}개")
+                SummaryRow("서버가 자동으로 저장합니다. 다음 백업 때 상태를 확인하며 재전송하지 않습니다.")
+            }
             SummaryRow("대기 중: ${(counts["NEW"] ?: 0) + (counts["HASHED"] ?: 0)}개")
             SummaryRow(
                 "실패: ${counts["FAILED"] ?: 0}개",
@@ -183,7 +187,7 @@ fun BackupScreen(engine: BackupEngine) {
             }
             is BackupState.Done -> {
                 Text(
-                    "완료 — 업로드 ${s.uploaded}개, 서버에 이미 있음 ${s.alreadyOnServer}개, 실패 ${s.failed}개" +
+                    "전송 종료 — 저장 완료 ${s.uploaded}개, 서버에 이미 있음 ${s.alreadyOnServer}개, 원본 저장 대기 ${s.serverQueued}개, 실패 ${s.failed}개" +
                         " (소요 시간 ${formatElapsed(s.elapsedMillis)})",
                     color = MaterialTheme.colorScheme.primary,
                 )

@@ -31,7 +31,15 @@ data class CheckResponse(
     val missing: List<String>,
     /** 서버에서 삭제된(스킵 대상) 해시들 */
     val deleted: List<String>?,
+    val queued: List<String>? = null,
 )
+data class UploadReceipt(val hash: String, val status: String?)
+
+/** 구형 서버는 queued/deleted를 생략할 수 있다. 수신 대기를 원본 저장 완료와 구분한다. */
+fun CheckResponse.storedHashes(requested: List<String>): List<String> {
+    val excluded = (missing + deleted.orEmpty() + queued.orEmpty()).toSet()
+    return requested.filterNot { it in excluded }
+}
 data class ClusterDto(val clusterId: Int, val faceCount: Long, val coverFaceId: Long, val name: String?)
 data class NameClusterRequest(val name: String)
 
@@ -62,14 +70,15 @@ interface HomePhotoApi {
     @POST("api/v1/assets/check")
     suspend fun check(@Body request: CheckRequest): CheckResponse
 
-    /** 201 = 신규 저장, 409 = 이미 존재(성공 취급) */
+    /** 202 = 서버 수신 완료(원본 저장 대기), 201/409 = 원본 저장 완료 */
+    @retrofit2.http.Headers("X-Upload-Queue: true")
     @Multipart
     @POST("api/v1/assets")
     suspend fun upload(
         @Part file: MultipartBody.Part,
         @Part("hash") hash: RequestBody,
         @Part("fileMtime") fileMtime: RequestBody?,
-    ): Response<AssetDto>
+    ): Response<UploadReceipt>
 }
 
 object ApiFactory {

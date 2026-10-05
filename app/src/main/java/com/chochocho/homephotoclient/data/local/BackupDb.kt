@@ -11,7 +11,7 @@ data class LocalAsset(
     val size: Long,
     val mtime: Long?,
     val hash: String?,
-    val status: String,       // NEW | HASHED | UPLOADED | FAILED
+    val status: String,       // NEW | HASHED | SERVER_QUEUED | UPLOADED | FAILED | SKIPPED | RESTORE
     val error: String?,
 )
 
@@ -232,7 +232,7 @@ class BackupDb(context: Context) : SQLiteOpenHelper(context, "backup.db", null, 
             for (chunk in hashes.chunked(500)) {
                 val placeholders = chunk.joinToString(",") { "?" }
                 db.execSQL(
-                    "UPDATE local_assets SET status = 'HASHED', error = NULL WHERE status = 'UPLOADED' AND hash IN ($placeholders)",
+                    "UPDATE local_assets SET status = 'HASHED', error = NULL WHERE status IN ('UPLOADED', 'SERVER_QUEUED') AND hash IN ($placeholders)",
                     chunk.toTypedArray(),
                 )
             }
@@ -243,7 +243,7 @@ class BackupDb(context: Context) : SQLiteOpenHelper(context, "backup.db", null, 
     }
 
     /** 서버에 이미 있는 해시들을 UPLOADED로 마킹 */
-    fun markUploadedByHashes(hashes: Collection<String>) {
+    fun markUploadedByHashes(hashes: Collection<String>, status: String = "UPLOADED") {
         if (hashes.isEmpty()) return
         val db = writableDatabase
         db.beginTransaction()
@@ -251,8 +251,8 @@ class BackupDb(context: Context) : SQLiteOpenHelper(context, "backup.db", null, 
             for (chunk in hashes.chunked(500)) {
                 val placeholders = chunk.joinToString(",") { "?" }
                 db.execSQL(
-                    "UPDATE local_assets SET status = 'UPLOADED', error = NULL WHERE hash IN ($placeholders)",
-                    chunk.toTypedArray(),
+                    "UPDATE local_assets SET status = ?, error = NULL WHERE hash IN ($placeholders)",
+                    (listOf(status) + chunk).toTypedArray(),
                 )
             }
             db.setTransactionSuccessful()
