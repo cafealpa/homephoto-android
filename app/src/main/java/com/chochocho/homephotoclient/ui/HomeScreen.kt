@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.google.gson.Gson
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +55,21 @@ fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onPeople: (
         catch (e: CancellationException) { throw e }
         catch (e: Exception) { peopleError = e.toFriendlyMessage() }
     }
+    var family by remember(api) { mutableStateOf<FamilyAlbumHome?>(null) }
+    var familyError by remember(api) { mutableStateOf<String?>(null) }
+    val albumSaver = remember { Saver<FamilyAlbumSummary?, String>(
+        save = { Gson().toJson(it) }, restore = { Gson().fromJson(it, FamilyAlbumSummary::class.java) }) }
+    var familyAlbum by rememberSaveable(cfg.serverUrl, cfg.apiKey, stateSaver = albumSaver) { mutableStateOf<FamilyAlbumSummary?>(null) }
+    LaunchedEffect(api, refresh) {
+        familyError = null
+        try { family = api.familyAlbumsHome() }
+        catch (e: CancellationException) { throw e }
+        catch (e: Exception) { familyError = if (e is retrofit2.HttpException && e.code() == 404) "서버를 업데이트하면 가족 앨범을 사용할 수 있어요." else e.toFriendlyMessage() }
+    }
+    familyAlbum?.let { album ->
+        key(album.kind, album.date) { FamilyAlbumScreen(api, cfg, album, onBack = { familyAlbum = null; refresh++ }) }
+        return
+    }
     person?.let { cluster ->
         PersonDetailScreen(api, cfg, cluster, onBack = { person = null; refresh++ })
         return
@@ -77,6 +95,24 @@ fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onPeople: (
                         Text("백업을 시작하면 가족의 사진이 여기에 모여요.")
                         Button(onClick = onBackup) { Text("사진 백업 시작") }
                     }
+                }
+            }
+            item {
+                Text("이번 주 우리 가족", style = MaterialTheme.typography.titleLarge)
+                familyError?.let { ErrorBlock("가족 앨범을 불러올 수 없어요", it, onRetry = { refresh++ }) }
+                if (family == null && familyError == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+                family?.weekly?.forEach { album -> FamilyAlbumCard(album, cfg) { familyAlbum = album } }
+            }
+            family?.let { albums ->
+                item {
+                    Text("함께 찍은 하루", style = MaterialTheme.typography.titleLarge)
+                    Text("여러 기기에서 담은 같은 날의 사진", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (albums.together.isEmpty()) Text("최근 30일 중 두 대 이상 기기의 사진이 있는 날이 여기에 모여요.")
+                    albums.together.forEach { album -> FamilyAlbumCard(album, cfg) { familyAlbum = album } }
+                }
+                if (albums.saved.isNotEmpty()) item {
+                    Text("완성한 가족 앨범", style = MaterialTheme.typography.titleLarge)
+                    albums.saved.forEach { album -> FamilyAlbumCard(album, cfg) { familyAlbum = album } }
                 }
             }
             if (photos.isNotEmpty()) item {
@@ -143,5 +179,24 @@ internal fun DiscoverySectionTitle(title: String, action: String, onClick: () ->
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
         TextButton(onClick = onClick) { Text(action) }
+    }
+}
+
+@Composable
+private fun FamilyAlbumCard(album: FamilyAlbumSummary, cfg: AppSettings, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(top = HomePhotoSpacing.item)) {
+        Row(Modifier.padding(HomePhotoSpacing.section), verticalAlignment = Alignment.CenterVertically) {
+            album.coverAssetId?.let { id ->
+                AsyncImage(ImageRequest.Builder(LocalContext.current).data("${cfg.serverUrl}/api/v1/assets/$id/thumb?size=400")
+                    .setHeader("X-Api-Key", cfg.apiKey).build(), contentDescription = null,
+                    contentScale = ContentScale.Crop, modifier = Modifier.size(HomePhotoSpacing.avatar).clip(MaterialTheme.shapes.medium))
+                Spacer(Modifier.width(HomePhotoSpacing.section))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(album.title, style = MaterialTheme.typography.titleMedium)
+                Text("${album.date} · 후보 ${album.photoCount}장 · 기기 ${album.deviceCount}대", style = MaterialTheme.typography.bodySmall)
+                Text(if (album.albumId == null) "사진 골라 완성하기 →" else "저장한 앨범 보기 →", color = MaterialTheme.colorScheme.primary)
+            }
+        }
     }
 }

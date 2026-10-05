@@ -50,7 +50,26 @@ data class NameClusterRequest(val name: String)
 
 data class BackupCapacity(val accepting: Boolean, val reason: String?, val retryAfterSeconds: Int = 300)
 
+data class FamilyDevice(val id: String?, val name: String, val count: Int)
+data class FamilyAlbumSummary(val kind: String, val date: String, val endDate: String, val title: String,
+    val albumId: Long?, val coverAssetId: Long?, val photoCount: Int, val deviceCount: Int)
+data class FamilyAlbumDetail(val summary: FamilyAlbumSummary, val note: String, val revision: Int,
+    val selected: List<AssetDto>, val devices: List<FamilyDevice>)
+data class FamilyAlbumHome(val weekly: List<FamilyAlbumSummary>, val together: List<FamilyAlbumSummary>, val saved: List<FamilyAlbumSummary>)
+data class SaveFamilyAlbum(val title: String, val note: String, val assetIds: List<Long>, val revision: Int)
+
 interface HomePhotoApi {
+    @GET("api/v1/family-albums/home")
+    suspend fun familyAlbumsHome(): FamilyAlbumHome
+    @GET("api/v1/family-albums/{kind}/{date}")
+    suspend fun familyAlbum(@retrofit2.http.Path("kind") kind: String, @retrofit2.http.Path("date") date: String): FamilyAlbumDetail
+    @GET("api/v1/family-albums/{kind}/{date}/candidates")
+    suspend fun familyAlbumCandidates(@retrofit2.http.Path("kind") kind: String, @retrofit2.http.Path("date") date: String,
+        @retrofit2.http.Query("cursor") cursor: String? = null): AssetPageDto
+    @POST("api/v1/family-albums/{kind}/{date}")
+    suspend fun saveFamilyAlbum(@retrofit2.http.Path("kind") kind: String, @retrofit2.http.Path("date") date: String,
+        @Body request: SaveFamilyAlbum): FamilyAlbumDetail
+
     @GET("api/v1/backup-capacity")
     suspend fun backupCapacity(@retrofit2.http.Query("bytes") bytes: Long): Response<BackupCapacity>
     @GET("api/v1/photos/search")
