@@ -14,6 +14,8 @@
 - 백그라운드 백업: WorkManager(포그라운드 서비스), 설정: DataStore Preferences
 - 로컬 상태: SQLite(`data/local/BackupDb.kt`) — 파일별 해시·업로드 상태·실패 이력
 
+APK 업데이트와 릴리즈 준비는 [`docs/UPDATES.md`](docs/UPDATES.md)를 참고하세요.
+
 ## 빌드·실행
 
 Android Studio에서 이 저장소 루트를 연다. `local.properties`(SDK 경로)는 자동 생성되며
