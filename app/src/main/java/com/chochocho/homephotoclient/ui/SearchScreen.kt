@@ -62,7 +62,7 @@ internal class DiscoveryState(private val api: HomePhotoApi, val query: PhotoQue
 fun SearchScreen(repository: SettingsRepository, onPeople: () -> Unit) {
     val config by repository.settings.collectAsState(initial = null)
     val cfg = config ?: return
-    val api = remember(cfg.serverUrl, cfg.apiKey) { ApiFactory.create(cfg.serverUrl, cfg.apiKey) }
+    val api = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey) { repository.createApi(cfg) }
     var draft by rememberSaveable { mutableStateOf("") }
     var submitted by rememberSaveable { mutableStateOf("") }
     var month by rememberSaveable { mutableStateOf<String?>(null) }
@@ -74,7 +74,7 @@ fun SearchScreen(repository: SettingsRepository, onPeople: () -> Unit) {
     var monthsRevision by remember { mutableIntStateOf(0) }
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
     val query = PhotoQuery(submitted, month)
-    val state = remember(cfg.serverUrl, cfg.apiKey, query, revision) { DiscoveryState(api, query) }
+    val state = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey, query, revision) { DiscoveryState(api, query) }
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
     val gridState = rememberLazyGridState()

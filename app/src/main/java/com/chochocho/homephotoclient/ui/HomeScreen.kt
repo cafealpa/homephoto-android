@@ -32,7 +32,7 @@ import java.time.YearMonth
 fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onPeople: () -> Unit, onBackup: () -> Unit) {
     val config by repository.settings.collectAsState(initial = null)
     val cfg = config ?: return
-    val api = remember(cfg.serverUrl, cfg.apiKey) { ApiFactory.create(cfg.serverUrl, cfg.apiKey) }
+    val api = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey) { repository.createApi(cfg) }
     var photos by remember(api) { mutableStateOf<List<AssetDto>>(emptyList()) }
     var people by remember(api) { mutableStateOf<List<ClusterDto>>(emptyList()) }
     var loading by remember(api) { mutableStateOf(true) }

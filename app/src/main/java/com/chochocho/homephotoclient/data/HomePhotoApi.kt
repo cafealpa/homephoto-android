@@ -124,8 +124,11 @@ object ApiFactory {
         apiKey: String,
         deviceId: String? = null,
         deviceName: String? = null,
+        routing: okhttp3.Interceptor? = null,
     ): HomePhotoApi {
         val client = OkHttpClient.Builder()
+            .apply { if (routing != null) addInterceptor(routing) }
+            .addNetworkInterceptor(trackServerRequest)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .writeTimeout(10, TimeUnit.MINUTES) // 대용량 동영상 업로드 대비

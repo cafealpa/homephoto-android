@@ -30,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.chochocho.homephotoclient.backup.BackupScheduler
-import com.chochocho.homephotoclient.data.ApiFactory
 import com.chochocho.homephotoclient.data.SettingsRepository
 import com.chochocho.homephotoclient.ui.components.PrimaryActionButton
 import com.chochocho.homephotoclient.ui.components.SecondaryActionButton
@@ -43,6 +42,7 @@ fun SettingsScreen(repository: SettingsRepository) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var serverUrl by remember { mutableStateOf("") }
+    var internalServerUrl by remember { mutableStateOf("") }
     var apiKey by remember { mutableStateOf("") }
     var deviceName by remember { mutableStateOf("") }
     var autoBackup by remember { mutableStateOf(false) }
@@ -57,7 +57,8 @@ fun SettingsScreen(repository: SettingsRepository) {
 
     LaunchedEffect(Unit) {
         val saved = repository.settings.first()
-        serverUrl = saved.serverUrl
+        serverUrl = saved.externalServerUrl
+        internalServerUrl = saved.internalServerUrl
         apiKey = saved.apiKey
         deviceName = saved.deviceName
         autoBackup = saved.autoBackupEnabled
@@ -78,10 +79,19 @@ fun SettingsScreen(repository: SettingsRepository) {
             OutlinedTextField(
                 value = serverUrl,
                 onValueChange = { serverUrl = it },
-                label = { Text("서버 주소 (예: http://192.168.0.2:8080)") },
+                label = { Text("외부 서버 주소 (예: https://photo.example.com)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            OutlinedTextField(
+                value = internalServerUrl,
+                onValueChange = { internalServerUrl = it },
+                label = { Text("내부 서버 주소 (예: http://192.168.0.2:8080)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text("Wi-Fi에서는 내부 → 외부, 그 외에는 외부 → 내부 순서로 연결합니다. 주소는 하나만 입력해도 됩니다.",
+                style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(
                 value = apiKey,
                 onValueChange = { apiKey = it },
@@ -100,9 +110,14 @@ fun SettingsScreen(repository: SettingsRepository) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 SecondaryActionButton("저장", onClick = {
                     scope.launch {
-                        repository.save(serverUrl, apiKey, deviceName)
-                        resultText = "저장했습니다"
-                        resultOk = true
+                        try {
+                            repository.save(serverUrl, internalServerUrl, apiKey, deviceName)
+                            resultText = "저장했습니다"
+                            resultOk = true
+                        } catch (e: IllegalArgumentException) {
+                            resultText = e.message
+                            resultOk = false
+                        }
                     }
                 })
 
@@ -114,8 +129,8 @@ fun SettingsScreen(repository: SettingsRepository) {
                         resultText = null
                         scope.launch {
                             try {
-                                repository.save(serverUrl, apiKey, deviceName)
-                                val api = ApiFactory.create(serverUrl.trim(), apiKey.trim())
+                                repository.save(serverUrl, internalServerUrl, apiKey, deviceName)
+                                val api = repository.createApi(repository.settings.first())
                                 val months = api.months()
                                 val total = months.sumOf { it.count }
                                 resultText = "연결 성공 — 서버에 ${months.size}개월, 총 ${total}장"

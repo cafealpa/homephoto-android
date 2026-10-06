@@ -33,7 +33,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
-import com.chochocho.homephotoclient.data.ApiFactory
 import com.chochocho.homephotoclient.data.AppSettings
 import com.chochocho.homephotoclient.data.AssetDto
 import com.chochocho.homephotoclient.data.SettingsRepository
@@ -76,8 +75,8 @@ fun TimelineScreen(repository: SettingsRepository) {
     val cfg = config ?: return
 
     // 주의: Retrofit 프록시 객체를 remember의 key로 쓰면 안 된다 (equals가 항상 false)
-    val state = remember(cfg.serverUrl, cfg.apiKey) {
-        AssetListState(ApiFactory.create(cfg.serverUrl, cfg.apiKey))
+    val state = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey) {
+        AssetListState(repository.createApi(cfg))
     }
     val scope = rememberCoroutineScope()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }

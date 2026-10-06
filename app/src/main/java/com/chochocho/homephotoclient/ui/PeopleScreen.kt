@@ -39,7 +39,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.chochocho.homephotoclient.data.ApiFactory
 import com.chochocho.homephotoclient.data.AppSettings
 import com.chochocho.homephotoclient.data.ClusterDto
 import com.chochocho.homephotoclient.data.HomePhotoApi
@@ -57,7 +56,7 @@ fun PeopleScreen(repository: SettingsRepository) {
     LaunchedEffect(Unit) { config = repository.settings.first() }
     val cfg = config ?: return
 
-    val api = remember(cfg.serverUrl, cfg.apiKey) { ApiFactory.create(cfg.serverUrl, cfg.apiKey) }
+    val api = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey) { repository.createApi(cfg) }
     val scope = rememberCoroutineScope()
 
     var clusters by remember { mutableStateOf<List<ClusterDto>?>(null) }

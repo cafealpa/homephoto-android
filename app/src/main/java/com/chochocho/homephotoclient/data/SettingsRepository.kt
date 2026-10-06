@@ -12,26 +12,37 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
 data class AppSettings(
-    val serverUrl: String,
+    val externalServerUrl: String,
     val apiKey: String,
     val autoBackupEnabled: Boolean,
     val deviceName: String,
-)
+    val internalServerUrl: String = "",
+) {
+    val serverUrl: String get() = externalServerUrl.ifBlank { internalServerUrl }
+}
 
 class SettingsRepository(private val context: Context) {
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
         AppSettings(
-            serverUrl = prefs[KEY_SERVER_URL] ?: "http://192.168.0.2:8080",
+            externalServerUrl = prefs[KEY_SERVER_URL] ?: "",
+            internalServerUrl = prefs[KEY_INTERNAL_SERVER_URL]
+                ?: if (prefs[KEY_SERVER_URL] == null) "http://192.168.0.2:8080" else "",
             apiKey = prefs[KEY_API_KEY] ?: "",
             autoBackupEnabled = prefs[KEY_AUTO_BACKUP] ?: false,
             deviceName = prefs[KEY_DEVICE_NAME] ?: android.os.Build.MODEL,
         )
     }
 
-    suspend fun save(serverUrl: String, apiKey: String, deviceName: String) {
+    fun createApi(settings: AppSettings, deviceId: String? = null): HomePhotoApi =
+        ApiFactory.create(settings.serverUrl, settings.apiKey, deviceId, settings.deviceName,
+            serverRouting(context) { settings })
+
+    suspend fun save(serverUrl: String, internalServerUrl: String, apiKey: String, deviceName: String) {
+        validateServerUrls(serverUrl, internalServerUrl)
         context.dataStore.edit { prefs ->
             prefs[KEY_SERVER_URL] = serverUrl.trim().trimEnd('/')
+            prefs[KEY_INTERNAL_SERVER_URL] = internalServerUrl.trim().trimEnd('/')
             prefs[KEY_API_KEY] = apiKey.trim()
             prefs[KEY_DEVICE_NAME] = deviceName.trim().ifEmpty { android.os.Build.MODEL }
         }
@@ -51,6 +62,7 @@ class SettingsRepository(private val context: Context) {
     }
 
     companion object {
+        private val KEY_INTERNAL_SERVER_URL = stringPreferencesKey("internal_server_url")
         private val KEY_SERVER_URL = stringPreferencesKey("server_url")
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_AUTO_BACKUP = booleanPreferencesKey("auto_backup")

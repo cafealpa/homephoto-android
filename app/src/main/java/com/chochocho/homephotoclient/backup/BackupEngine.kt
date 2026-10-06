@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
-import com.chochocho.homephotoclient.data.ApiFactory
 import com.chochocho.homephotoclient.data.CheckRequest
 import com.chochocho.homephotoclient.data.MediaScanner
 import com.chochocho.homephotoclient.data.SettingsRepository
@@ -150,7 +149,7 @@ class BackupEngine private constructor(
         try {
             val cfg = settings.settings.first()
             val deviceId = settings.ensureDeviceId()
-            val api = ApiFactory.create(cfg.serverUrl, cfg.apiKey, deviceId, cfg.deviceName)
+            val api = settings.createApi(cfg, deviceId)
 
             // 1. MediaStore 스캔
             _state.value = BackupState.Working("스캔", 0, 0, null, startedAtMillis = runStart)
