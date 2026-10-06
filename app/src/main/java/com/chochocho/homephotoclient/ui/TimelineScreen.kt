@@ -75,15 +75,17 @@ fun TimelineScreen(repository: SettingsRepository) {
     LaunchedEffect(Unit) { config = repository.settings.first() }
     val cfg = config ?: return
 
+    var selectedYear by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedMonth by rememberSaveable { mutableStateOf<String?>(null) }
     val monthState = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey) {
         TimelineMonthsState(repository.createApi(cfg))
     }
     LaunchedEffect(monthState) { monthState.load() }
 
+    val period = TimelinePeriodFilter(monthState.months, selectedYear, selectedMonth)
     // 주의: Retrofit 프록시 객체를 remember의 key로 쓰면 안 된다 (equals가 항상 false)
-    val state = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey, selectedMonth) {
-        AssetListState(repository.createApi(cfg), yearMonth = selectedMonth)
+    val state = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey, period.yearMonths) {
+        AssetListState(repository.createApi(cfg), yearMonths = period.yearMonths)
     }
     val scope = rememberCoroutineScope()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
@@ -96,7 +98,7 @@ fun TimelineScreen(repository: SettingsRepository) {
 
     // cells는 재구성마다 새 목록이므로 장기 실행 중인 스크롤 감시에는 최신 개수를 전달한다.
     val cellCount by rememberUpdatedState(cells.size)
-    LaunchedEffect(selectedMonth) { gridState.scrollToItem(0) }
+    LaunchedEffect(selectedYear, selectedMonth) { gridState.scrollToItem(0) }
     LaunchedEffect(gridState, state) {
         snapshotFlow {
             val last = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
@@ -144,14 +146,29 @@ fun TimelineScreen(repository: SettingsRepository) {
                 }
             }
             MonthChipRow(
-                months = listOf("전체") + monthState.months,
-                selected = selectedMonth ?: "전체",
-                onSelect = { ym ->
-                    selectedIndex = null
-                    selectedMonth = ym.takeUnless { it == "전체" }
+                months = listOf("전체 연도") + period.years,
+                selected = selectedYear ?: "전체 연도",
+                onSelect = { year ->
+                    val nextYear = year.takeUnless { it == "전체 연도" }
+                    if (nextYear != selectedYear) {
+                        selectedIndex = null
+                        selectedYear = nextYear
+                        selectedMonth = null
+                    }
                 },
-                monthLabel = ::formatMonthShort,
+                monthLabel = { if (it == "전체 연도") it else "${it}년" },
             )
+            if (selectedYear != null) {
+                MonthChipRow(
+                    months = listOf("전체 월") + period.months,
+                    selected = selectedMonth ?: "전체 월",
+                    onSelect = { month ->
+                        selectedIndex = null
+                        selectedMonth = month.takeUnless { it == "전체 월" }
+                    },
+                    monthLabel = { if (it == "전체 월") it else "${it.toInt()}월" },
+                )
+            }
 
             if (error != null) {
                 Row(
@@ -354,12 +371,6 @@ internal fun buildCells(items: List<AssetDto>, columns: Int): List<Cell> = build
 }
 
 private fun formatMonth(yearMonth: String): String {
-    val parts = yearMonth.split("-")
-    return if (parts.size == 2) "${parts[0]}년 ${parts[1].trimStart('0')}월" else yearMonth
-}
-
-/** 여러 해의 같은 달을 구분할 수 있도록 연도도 표시한다. */
-private fun formatMonthShort(yearMonth: String): String {
     val parts = yearMonth.split("-")
     return if (parts.size == 2) "${parts[0]}년 ${parts[1].trimStart('0')}월" else yearMonth
 }

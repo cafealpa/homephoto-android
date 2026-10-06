@@ -86,4 +86,39 @@ class TimelineLoadingTest {
         assertEquals("월 조회 실패", state.error); assertFalse(state.loading)
         fail = false; state.load(); assertNull(state.error)
     }
+    @Test fun `year filter paginates within each month and skips an emptied month`() = runBlocking {
+        val requests = mutableListOf<Pair<String?, String?>>()
+        val state = AssetListState(api(pageReply = { cursor, month ->
+            requests += cursor to month
+            when (month) {
+                "2026-10" -> if (cursor == null) AssetPageDto(listOf(photo(3, month)), "oct-next")
+                    else AssetPageDto(listOf(photo(2, month)), null)
+                "2026-09" -> AssetPageDto(emptyList(), null)
+                "2026-08" -> AssetPageDto(listOf(photo(1, month)), null)
+                else -> error("unexpected month")
+            }
+        }), yearMonths = listOf("2026-10", "2026-09", "2026-08"))
+        repeat(4) { state.loadMore() }
+        assertEquals(listOf(null to "2026-10", "oct-next" to "2026-10", null to "2026-09", null to "2026-08"), requests)
+        assertEquals(listOf(3L, 2L, 1L), state.items.map { it.id })
+        state.reset(); state.loadMore()
+        assertEquals(null to "2026-10", requests.last())
+        assertEquals(listOf(3L), state.items.map { it.id })
+    }
+    @Test fun `year without available months never falls back to all photos`() = runBlocking {
+        val state = AssetListState(api(pageReply = { _, _ -> error("must not request all photos") }), yearMonths = emptyList())
+        state.loadMore(); state.reset(); state.loadMore()
+        assertTrue(state.items.isEmpty()); assertFalse(state.loading)
+    }
+    @Test fun `year and month selections produce independent choices and request scope`() {
+        val available = listOf("2025-12", "2026-08", "2026-10", "2025-08")
+        val all = TimelinePeriodFilter(available, null, null)
+        assertEquals(listOf("2026", "2025"), all.years)
+        assertNull(all.yearMonths)
+        val year = TimelinePeriodFilter(available, "2026", null)
+        assertEquals(listOf("10", "08"), year.months)
+        assertEquals(listOf("2026-10", "2026-08"), year.yearMonths)
+        assertEquals(listOf("2025-08"), TimelinePeriodFilter(available, "2025", "08").yearMonths)
+        assertEquals(listOf("12", "08"), TimelinePeriodFilter(available, "2025", null).months)
+    }
 }

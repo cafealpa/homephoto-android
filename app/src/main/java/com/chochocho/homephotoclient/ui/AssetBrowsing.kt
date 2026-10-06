@@ -36,13 +36,15 @@ import com.chochocho.homephotoclient.data.toFriendlyMessage
 internal class AssetListState(
     val api: HomePhotoApi,
     private val clusterId: Int? = null,
-    private val yearMonth: String? = null,
+    yearMonth: String? = null,
+    private val yearMonths: List<String>? = yearMonth?.let { listOf(it) },
 ) {
     var items by mutableStateOf(listOf<AssetDto>())
     var loading by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
     private var nextCursor: String? = null
-    private var reachedEnd = false
+    private var monthIndex = 0
+    private var reachedEnd = yearMonths?.isEmpty() == true
     private var generation = 0
 
     suspend fun loadMore() {
@@ -51,11 +53,18 @@ internal class AssetListState(
         loading = true
         error = null
         try {
-            val page = api.assets(cursor = nextCursor, limit = 200, clusterId = clusterId, yearMonth = yearMonth)
-            if (generation != requestGeneration) return
-            items = items + page.items
-            nextCursor = page.nextCursor
-            if (page.nextCursor == null) reachedEnd = true
+            do {
+                val page = api.assets(cursor = nextCursor, limit = 200, clusterId = clusterId,
+                    yearMonth = yearMonths?.get(monthIndex))
+                if (generation != requestGeneration) return
+                items = items + page.items
+                nextCursor = page.nextCursor
+                if (page.nextCursor == null) {
+                    if (yearMonths != null && monthIndex < yearMonths.lastIndex) monthIndex++
+                    else reachedEnd = true
+                }
+                // 월 목록 조회 뒤 사진이 삭제되어 빈 월이 되어도 다음 월로 진행한다.
+            } while (page.items.isEmpty() && !reachedEnd)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -72,7 +81,8 @@ internal class AssetListState(
         loading = false
         items = emptyList()
         nextCursor = null
-        reachedEnd = false
+        monthIndex = 0
+        reachedEnd = yearMonths?.isEmpty() == true
         error = null
     }
 
