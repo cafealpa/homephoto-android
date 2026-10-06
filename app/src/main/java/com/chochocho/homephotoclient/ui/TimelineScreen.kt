@@ -20,7 +20,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -74,9 +75,15 @@ fun TimelineScreen(repository: SettingsRepository) {
     LaunchedEffect(Unit) { config = repository.settings.first() }
     val cfg = config ?: return
 
+    var selectedMonth by rememberSaveable { mutableStateOf<String?>(null) }
+    val monthState = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey) {
+        TimelineMonthsState(repository.createApi(cfg))
+    }
+    LaunchedEffect(monthState) { monthState.load() }
+
     // 주의: Retrofit 프록시 객체를 remember의 key로 쓰면 안 된다 (equals가 항상 false)
-    val state = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey) {
-        AssetListState(repository.createApi(cfg))
+    val state = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey, selectedMonth) {
+        AssetListState(repository.createApi(cfg), yearMonth = selectedMonth)
     }
     val scope = rememberCoroutineScope()
     var selectedIndex by remember { mutableStateOf<Int?>(null) }
@@ -87,20 +94,15 @@ fun TimelineScreen(repository: SettingsRepository) {
     val cells = remember(state.items, columns) { buildCells(state.items, columns) }
     val gridState = rememberLazyGridState()
 
-    // 월 칩 — 불러온 사진에 있는 월만 보여주고, 누르면 그 월 헤더로 스크롤한다.
-    val months = remember(cells) { cells.filterIsInstance<Cell.Header>().map { it.yearMonth } }
-    // remember(cells) 필수 — 키가 없으면 람다가 최초 cells 를 계속 붙잡아
-    // 사진을 더 불러와도 선택된 월 칩이 갱신되지 않는다.
-    val currentMonth by remember(cells) {
-        derivedStateOf { cells.getOrNull(gridState.firstVisibleItemIndex)?.yearMonth }
-    }
-
+    // cells는 재구성마다 새 목록이므로 장기 실행 중인 스크롤 감시에는 최신 개수를 전달한다.
+    val cellCount by rememberUpdatedState(cells.size)
+    LaunchedEffect(selectedMonth) { gridState.scrollToItem(0) }
     LaunchedEffect(gridState, state) {
         snapshotFlow {
             val last = gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            last to cells.size
-        }.collect { (lastVisible, itemCount) ->
-            if (itemCount > 0 && lastVisible >= itemCount - 40) state.loadMore()
+            Triple(last, cellCount, !state.loading && state.error == null)
+        }.collect { (lastVisible, itemCount, ready) ->
+            if (ready && itemCount > 0 && lastVisible >= itemCount - 40) state.loadMore()
         }
     }
 
@@ -112,6 +114,7 @@ fun TimelineScreen(repository: SettingsRepository) {
                 onAction = {
                     state.reset()
                     scope.launch { state.loadMore() }
+                    scope.launch { monthState.load() }
                 },
             )
 
@@ -130,12 +133,22 @@ fun TimelineScreen(repository: SettingsRepository) {
                 return@Column
             }
 
+            if (monthState.loading) Text("월 목록을 불러오는 중…",
+                modifier = Modifier.padding(horizontal = HomePhotoSpacing.screen),
+                style = MaterialTheme.typography.bodySmall)
+            monthState.error?.let { message ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = HomePhotoSpacing.screen),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text("월 목록: $message", Modifier.weight(1f), color = MaterialTheme.colorScheme.error)
+                    TextButton(onClick = { scope.launch { monthState.load() } }) { Text("재시도") }
+                }
+            }
             MonthChipRow(
-                months = months,
-                selected = currentMonth,
+                months = listOf("전체") + monthState.months,
+                selected = selectedMonth ?: "전체",
                 onSelect = { ym ->
-                    val idx = cells.indexOfFirst { it is Cell.Header && it.yearMonth == ym }
-                    if (idx >= 0) scope.launch { gridState.animateScrollToItem(idx) }
+                    selectedIndex = null
+                    selectedMonth = ym.takeUnless { it == "전체" }
                 },
                 monthLabel = ::formatMonthShort,
             )
@@ -345,8 +358,8 @@ private fun formatMonth(yearMonth: String): String {
     return if (parts.size == 2) "${parts[0]}년 ${parts[1].trimStart('0')}월" else yearMonth
 }
 
-/** 월 칩용 짧은 표기 — "2026-08" → "8월". */
+/** 여러 해의 같은 달을 구분할 수 있도록 연도도 표시한다. */
 private fun formatMonthShort(yearMonth: String): String {
     val parts = yearMonth.split("-")
-    return if (parts.size == 2) "${parts[1].trimStart('0')}월" else yearMonth
+    return if (parts.size == 2) "${parts[0]}년 ${parts[1].trimStart('0')}월" else yearMonth
 }

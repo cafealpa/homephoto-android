@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
+import kotlinx.coroutines.CancellationException
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.chochocho.homephotoclient.data.AssetDto
@@ -35,31 +36,40 @@ import com.chochocho.homephotoclient.data.toFriendlyMessage
 internal class AssetListState(
     val api: HomePhotoApi,
     private val clusterId: Int? = null,
+    private val yearMonth: String? = null,
 ) {
     var items by mutableStateOf(listOf<AssetDto>())
     var loading by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
     private var nextCursor: String? = null
     private var reachedEnd = false
+    private var generation = 0
 
     suspend fun loadMore() {
         if (loading || reachedEnd) return
+        val requestGeneration = generation
         loading = true
         error = null
         try {
-            val page = api.assets(cursor = nextCursor, limit = 200, clusterId = clusterId)
+            val page = api.assets(cursor = nextCursor, limit = 200, clusterId = clusterId, yearMonth = yearMonth)
+            if (generation != requestGeneration) return
             items = items + page.items
             nextCursor = page.nextCursor
             if (page.nextCursor == null) reachedEnd = true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            if (generation != requestGeneration) return
             android.util.Log.e("AssetList", "loadMore failed", e)
             error = e.toFriendlyMessage()
         } finally {
-            loading = false
+            if (generation == requestGeneration) loading = false
         }
     }
 
     fun reset() {
+        generation++
+        loading = false
         items = emptyList()
         nextCursor = null
         reachedEnd = false
