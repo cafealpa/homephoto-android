@@ -61,7 +61,7 @@ fun HomePhotoCard(
 }
 
 /**
- * 화면 제목 행. 제목은 headlineSmall(24/32), 오른쪽 동작은 틸 텍스트 버튼.
+ * 화면 제목 행. 제목은 headlineSmall(24/32), 오른쪽 동작은 primary 텍스트 버튼.
  * 패딩은 1c 실측값 `4px 16px 8px`.
  */
 @Composable
@@ -96,7 +96,7 @@ fun ScreenTitleRow(
 }
 
 /**
- * 월 칩 한 개. 선택 시 테두리·글자 모두 틸 + Medium, 비선택은 outline 테두리 + 보조 글자색.
+ * 월 칩 한 개. 선택 시 테두리·글자 모두 primary + Medium, 비선택은 outline 테두리 + 보조 글자색.
  * 반경 8dp, 패딩 `8px 14px`.
  */
 @Composable
@@ -175,7 +175,7 @@ fun ErrorBlock(
 
 private val ButtonPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
 
-/** 채움 버튼 — 틸 배경 + #002020 글자, 반경 8dp, 패딩 `14px 24px`. */
+/** 채움 버튼 — primary 배경 + onPrimary 글자, 반경 8dp, 패딩 `14px 24px`. */
 @Composable
 fun PrimaryActionButton(
     label: String,
@@ -194,7 +194,7 @@ fun PrimaryActionButton(
     }
 }
 
-/** 테두리 버튼 — 틸 테두리 + 틸 글자, 반경 8dp, 패딩 `14px 24px`. */
+/** 테두리 버튼 — primary 테두리 + primary 글자, 반경 8dp, 패딩 `14px 24px`. */
 @Composable
 fun SecondaryActionButton(
     label: String,
@@ -218,7 +218,7 @@ fun SecondaryActionButton(
 }
 
 /**
- * 하단 내비게이션 (1c 확장). 아이콘 없이 라벨만, 선택 항목은 틸 + Medium.
+ * 하단 내비게이션 (1c 확장). 아이콘 없이 라벨만, 선택 항목은 primary + Medium.
  * 위쪽 1px 경계선, 아래는 시스템 제스처 영역만큼 띄운다.
  *
  * 원 디자인은 `rgba(15,15,17,.72)` + `backdrop-filter: blur(20px)`로 사진이 바 뒤로

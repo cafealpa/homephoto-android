@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,14 +24,19 @@ import com.chochocho.homephotoclient.ui.theme.HomePhotoTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-        )
+        enableEdgeToEdge()
         val repository = SettingsRepository(applicationContext)
         val backupEngine = BackupEngine.get(applicationContext)
         setContent {
-            HomePhotoTheme {
+            val appearance by repository.appearance.collectAsState(initial = null)
+            val currentAppearance = appearance ?: return@setContent
+            val darkTheme = currentAppearance.mode.isDark(isSystemInDarkTheme())
+            LaunchedEffect(darkTheme) {
+                val bars = SystemBarStyle.auto(android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT) { darkTheme }
+                enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)
+            }
+            HomePhotoTheme(palette = currentAppearance.palette, darkTheme = darkTheme) {
                 var selectedTab by rememberSaveable { mutableIntStateOf(0) }
                 var settingsOpen by rememberSaveable { mutableStateOf(false) }
                 val screenStates = rememberSaveableStateHolder()

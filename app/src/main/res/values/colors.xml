@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- XML 테마(기동 직후 창 배경·시스템 바)용 최소 색. Compose 화면 색은 ui/theme/Color.kt가 기준.
-         앱은 다크 전용이므로 values-night 를 따로 두지 않는다. -->
-    <color name="brand_teal">#FF4FD8DA</color>
-    <color name="surface_dark">#FF0F0F11</color>
+    <!-- 저장된 설정을 읽기 전 시작 화면에 사용하는 시스템 모드별 기본색. -->
+    <color name="launch_primary">#FFA44A27</color>
+    <color name="launch_on_primary">#FFFFFFFF</color>
+    <color name="launch_background">#FFFFF9F5</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

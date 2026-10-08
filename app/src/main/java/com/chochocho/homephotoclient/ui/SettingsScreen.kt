@@ -74,6 +74,8 @@ fun SettingsScreen(repository: SettingsRepository) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+            AppearanceSettingsSection(repository)
+            HorizontalDivider()
             Text("서버 설정", style = MaterialTheme.typography.headlineSmall)
 
             OutlinedTextField(

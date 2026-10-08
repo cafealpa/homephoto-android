@@ -8,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
 
@@ -23,6 +24,22 @@ data class AppSettings(
 
 class SettingsRepository(private val context: Context) {
 
+    // 서버/백업 설정과 별도로 구독해서 색상 변경이 API 재생성을 유발하지 않게 한다.
+    val appearance: Flow<AppearanceSettings> = context.dataStore.data.map { prefs ->
+        AppearanceSettings(
+            palette = AppPalette.fromStored(prefs[KEY_PALETTE]),
+            mode = AppColorMode.fromStored(prefs[KEY_COLOR_MODE]),
+        )
+    }.distinctUntilChanged()
+
+    suspend fun setPalette(palette: AppPalette) {
+        context.dataStore.edit { it[KEY_PALETTE] = palette.id }
+    }
+
+    suspend fun setColorMode(mode: AppColorMode) {
+        context.dataStore.edit { it[KEY_COLOR_MODE] = mode.id }
+    }
+
     val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
         AppSettings(
             externalServerUrl = prefs[KEY_SERVER_URL] ?: "",
@@ -32,7 +49,7 @@ class SettingsRepository(private val context: Context) {
             autoBackupEnabled = prefs[KEY_AUTO_BACKUP] ?: false,
             deviceName = prefs[KEY_DEVICE_NAME] ?: android.os.Build.MODEL,
         )
-    }
+    }.distinctUntilChanged()
 
     fun createApi(settings: AppSettings, deviceId: String? = null): HomePhotoApi =
         ApiFactory.create(settings.serverUrl, settings.apiKey, deviceId, settings.deviceName,
@@ -62,6 +79,8 @@ class SettingsRepository(private val context: Context) {
     }
 
     companion object {
+        private val KEY_PALETTE = stringPreferencesKey("appearance_palette")
+        private val KEY_COLOR_MODE = stringPreferencesKey("appearance_mode")
         private val KEY_INTERNAL_SERVER_URL = stringPreferencesKey("internal_server_url")
         private val KEY_SERVER_URL = stringPreferencesKey("server_url")
         private val KEY_API_KEY = stringPreferencesKey("api_key")

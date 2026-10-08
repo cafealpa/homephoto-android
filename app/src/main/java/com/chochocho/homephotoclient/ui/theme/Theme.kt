@@ -3,39 +3,10 @@ package com.chochocho.homephotoclient.ui.theme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.foundation.isSystemInDarkTheme
+import com.chochocho.homephotoclient.data.AppPalette
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
-
-private val DarkColors = darkColorScheme(
-    primary = HomePhotoColors.Teal80,
-    onPrimary = HomePhotoColors.Teal10,
-    primaryContainer = HomePhotoColors.Teal30,
-    onPrimaryContainer = HomePhotoColors.Teal90,
-    secondary = HomePhotoColors.Neutral80,
-    onSecondary = HomePhotoColors.Neutral10,
-    secondaryContainer = HomePhotoColors.Neutral30,
-    onSecondaryContainer = HomePhotoColors.Neutral90,
-    error = HomePhotoColors.Error80,
-    onError = HomePhotoColors.Error10,
-    errorContainer = HomePhotoColors.Error30,
-    onErrorContainer = HomePhotoColors.Error90,
-    background = HomePhotoColors.SurfaceDark,
-    onBackground = HomePhotoColors.OnSurfaceDark,
-    surface = HomePhotoColors.SurfaceDark,
-    onSurface = HomePhotoColors.OnSurfaceDark,
-    surfaceVariant = HomePhotoColors.SurfaceVariantDark,
-    onSurfaceVariant = HomePhotoColors.OnSurfaceVariantDark,
-    outline = HomePhotoColors.OutlineDark,
-    outlineVariant = HomePhotoColors.OutlineVariantDark,
-    // Card·Surface 는 surface 가 아니라 surfaceContainer* 역할을 쓴다. 지정하지 않으면
-    // M3 기본 팔레트(보라 기미 회색)가 그대로 나오므로 반드시 함께 덮어쓴다.
-    surfaceContainerLowest = HomePhotoColors.SurfaceContainerLowestDark,
-    surfaceContainerLow = HomePhotoColors.SurfaceContainerLowDark,
-    surfaceContainer = HomePhotoColors.SurfaceContainerDark,
-    surfaceContainerHigh = HomePhotoColors.SurfaceContainerHighDark,
-    surfaceContainerHighest = HomePhotoColors.SurfaceContainerHighestDark,
-)
 
 /** 모서리: 카드/다이얼로그 12dp, 칩·버튼 8dp, 썸네일 셀은 0(그리드 밀착). */
 val HomePhotoShapes = Shapes(
@@ -56,17 +27,19 @@ object HomePhotoSpacing {
     val spacious = 24.dp
     val avatar = 72.dp
     val touchTarget = 48.dp
+    val swatch = 22.dp
+    val hairline = 1.dp
 }
 
-/**
- * 앱 전체 테마. **다크 전용**이다 — 2026-08-19 다크 리디자인(1c 확장) 채택에 따라
- * 라이트 스킴을 제거하고 시스템 설정과 무관하게 항상 다크로 고정한다.
- * 다이내믹 컬러(Material You)도 쓰지 않는다(사진 색감과 충돌).
- */
+/** 6가지 팔레트와 노멀/다크 모드. 사진 색감과 독립적인 고정 색상이다. */
 @Composable
-fun HomePhotoTheme(content: @Composable () -> Unit) {
+fun HomePhotoTheme(
+    palette: AppPalette = AppPalette.PEACH,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit,
+) {
     MaterialTheme(
-        colorScheme = DarkColors,
+        colorScheme = homePhotoColorScheme(palette, darkTheme),
         typography = HomePhotoTypography,
         shapes = HomePhotoShapes,
         content = content,
