@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                     Box(Modifier.fillMaxSize().padding(innerPadding)) {
                         screenStates.SaveableStateProvider(if (settingsOpen) "settings" else "tab-$selectedTab") {
                             if (settingsOpen) SettingsScreen(repository) else when (selectedTab) {
-                                0 -> HomeScreen(repository, onPhotos = { selectedTab = 1 }, onPeople = { selectedTab = 3 }, onBackup = { selectedTab = 4 })
+                                0 -> HomeScreen(repository, onPhotos = { selectedTab = 1 }, onBackup = { selectedTab = 4 })
                                 1 -> TimelineScreen(repository)
                                 2 -> SearchScreen(repository, onPeople = { selectedTab = 3 })
                                 3 -> PeopleScreen(repository)

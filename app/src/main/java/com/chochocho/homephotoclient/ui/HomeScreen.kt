@@ -4,12 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.gson.Gson
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,19 +32,38 @@ import kotlinx.coroutines.CancellationException
 import java.time.YearMonth
 
 @Composable
-fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onPeople: () -> Unit, onBackup: () -> Unit) {
+fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onBackup: () -> Unit) {
     val config by repository.settings.collectAsState(initial = null)
     val cfg = config ?: return
     val api = remember(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey) { repository.createApi(cfg) }
-    var photos by remember(api) { mutableStateOf<List<AssetDto>>(emptyList()) }
-    var people by remember(api) { mutableStateOf<List<ClusterDto>>(emptyList()) }
-    var loading by remember(api) { mutableStateOf(true) }
-    var error by remember(api) { mutableStateOf<String?>(null) }
-    var peopleError by remember(api) { mutableStateOf<String?>(null) }
+    val connection = Triple(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey)
+    var photos by remember(connection) { mutableStateOf<List<AssetDto>>(emptyList()) }
+    var loading by remember(connection) { mutableStateOf(true) }
+    var error by remember(connection) { mutableStateOf<String?>(null) }
     var refresh by remember { mutableIntStateOf(0) }
-    var selected by remember(api) { mutableStateOf<Int?>(null) }
-    var person by remember(api) { mutableStateOf<ClusterDto?>(null) }
-    LaunchedEffect(api, refresh) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) refresh++ }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    var memories by remember(connection) { mutableStateOf<MemoryHome?>(null) }
+    var memoryError by remember(connection) { mutableStateOf<String?>(null) }
+    var memoryUnsupported by remember(connection) { mutableStateOf(false) }
+    var memoryId by rememberSaveable(cfg.serverUrl, cfg.apiKey) { mutableStateOf<Long?>(null) }
+    var memoryIsAlbum by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(connection, refresh) {
+        memoryError = null; memoryUnsupported = false
+        try { memories = api.memoriesHome() }
+        catch (e: CancellationException) { throw e }
+        catch (e: Exception) {
+            memoryUnsupported = e is retrofit2.HttpException && e.code() == 404
+            memoryError = if (memoryUnsupported) "서버를 업데이트하면 오늘의 추억을 볼 수 있어요." else e.toFriendlyMessage()
+        }
+    }
+    var selected by remember(connection) { mutableStateOf<Int?>(null) }
+    val homeScroll = rememberLazyListState()
+    LaunchedEffect(connection, refresh) {
         loading = true
         error = null
         try { photos = api.assets(limit = 12).items }
@@ -49,41 +71,36 @@ fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onPeople: (
         catch (e: Exception) { error = e.toFriendlyMessage() }
         finally { loading = false }
     }
-    LaunchedEffect(api, refresh) {
-        peopleError = null
-        try { people = api.clusters() }
-        catch (e: CancellationException) { throw e }
-        catch (e: Exception) { peopleError = e.toFriendlyMessage() }
-    }
-    var family by remember(api) { mutableStateOf<FamilyAlbumHome?>(null) }
-    var familyError by remember(api) { mutableStateOf<String?>(null) }
+    var family by remember(connection) { mutableStateOf<FamilyAlbumHome?>(null) }
+    var familyError by remember(connection) { mutableStateOf<String?>(null) }
     val albumSaver = remember { Saver<FamilyAlbumSummary?, String>(
         save = { Gson().toJson(it) }, restore = { Gson().fromJson(it, FamilyAlbumSummary::class.java) }) }
     var familyAlbum by rememberSaveable(cfg.serverUrl, cfg.apiKey, stateSaver = albumSaver) { mutableStateOf<FamilyAlbumSummary?>(null) }
-    LaunchedEffect(api, refresh) {
+    LaunchedEffect(connection, refresh) {
         familyError = null
         try { family = api.familyAlbumsHome() }
         catch (e: CancellationException) { throw e }
         catch (e: Exception) { familyError = if (e is retrofit2.HttpException && e.code() == 404) "서버를 업데이트하면 가족 앨범을 사용할 수 있어요." else e.toFriendlyMessage() }
     }
+    memoryId?.let { id ->
+        key(id, memoryIsAlbum) { MemoryScreen(api, cfg, id, memoryIsAlbum, onBack = { memoryId = null; refresh++ }) }
+        return
+    }
     familyAlbum?.let { album ->
         key(album.kind, album.date) { FamilyAlbumScreen(api, cfg, album, onBack = { familyAlbum = null; refresh++ }) }
         return
     }
-    person?.let { cluster ->
-        PersonDetailScreen(api, cfg, cluster, onBack = { person = null; refresh++ })
-        return
-    }
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
+            state = homeScroll,
             contentPadding = PaddingValues(HomePhotoSpacing.screen),
             verticalArrangement = Arrangement.spacedBy(HomePhotoSpacing.spacious),
         ) {
             item {
                 Column {
                     Text("우리 가족의 사진집", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Text("함께한 순간들", style = MaterialTheme.typography.headlineLarge)
-                    Text("소중한 일상을 다시 만나보세요", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("오늘 다시 보는 순간", style = MaterialTheme.typography.headlineLarge)
+                    Text("사진을 눌러 그날의 기억을 만나보세요", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             if (loading && photos.isEmpty()) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -97,25 +114,25 @@ fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onPeople: (
                     }
                 }
             }
-            item {
-                Text("이번 주 우리 가족", style = MaterialTheme.typography.titleLarge)
-                familyError?.let { ErrorBlock("가족 앨범을 불러올 수 없어요", it, onRetry = { refresh++ }) }
-                if (family == null && familyError == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-                family?.weekly?.forEach { album -> FamilyAlbumCard(album, cfg) { familyAlbum = album } }
-            }
-            family?.let { albums ->
-                item {
-                    Text("함께 찍은 하루", style = MaterialTheme.typography.titleLarge)
-                    Text("여러 기기에서 담은 같은 날의 사진", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (albums.together.isEmpty()) Text("최근 30일 중 두 대 이상 기기의 사진이 있는 날이 여기에 모여요.")
-                    albums.together.forEach { album -> FamilyAlbumCard(album, cfg) { familyAlbum = album } }
+            if (memoryError != null || memories == null || memories?.memories?.isEmpty() == true) item {
+                memoryError?.let { message ->
+                    if (memoryUnsupported) Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else ErrorBlock("추억을 불러올 수 없어요", message, onRetry = { refresh++ })
                 }
-                if (albums.saved.isNotEmpty()) item {
-                    Text("완성한 가족 앨범", style = MaterialTheme.typography.titleLarge)
-                    albums.saved.forEach { album -> FamilyAlbumCard(album, cfg) { familyAlbum = album } }
-                }
+                if (memories == null && memoryError == null) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (memories?.memories?.isEmpty() == true && memoryError == null)
+                    Text("오늘 준비된 추억이 아직 없어요. 최근 사진부터 둘러보세요.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (photos.isNotEmpty()) item {
+            items(memories?.memories.orEmpty(), key = { "memory-${it.id}" }) { memory ->
+                MemoryCard(memory, cfg) { memoryIsAlbum = false; memoryId = memory.id }
+            }
+            if (memories?.saved?.isNotEmpty() == true || family?.saved?.isNotEmpty() == true) item {
+                Text("간직한 앨범", style = MaterialTheme.typography.titleLarge)
+                memories?.saved?.forEach { album -> MemoryCard(album, cfg) { memoryIsAlbum = true; memoryId = album.albumId } }
+                family?.saved?.forEach { album -> FamilyAlbumCard(album, cfg) { familyAlbum = album } }
+            }
+            familyError?.let { message -> item { ErrorBlock("기존 앨범을 불러올 수 없어요", message, onRetry = { refresh++ }) } }
+            if (photos.isNotEmpty() && memories?.memories.isNullOrEmpty()) item {
                 val hero = photos.firstOrNull { it.mediaType == "PHOTO" } ?: photos.first()
                 Box(Modifier.fillMaxWidth().aspectRatio(1.05f).clip(MaterialTheme.shapes.extraLarge)
                     .background(MaterialTheme.colorScheme.surfaceContainer).clickable { selected = photos.indexOf(hero) }) {
@@ -133,23 +150,7 @@ fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onPeople: (
                     }
                 }
             }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(HomePhotoSpacing.section)) {
-                    DiscoverySectionTitle("사진 속 우리", "모두 보기", onPeople)
-                    when {
-                        peopleError != null -> ErrorBlock("인물을 불러올 수 없어요", peopleError!!, onRetry = { refresh++ })
-                        people.isEmpty() -> Text("얼굴 분석이 끝나면 가족의 사진을 인물별로 볼 수 있어요.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(HomePhotoSpacing.screen)) {
-                            items(people.take(10), key = { it.clusterId }) { cluster ->
-                                Box(Modifier.width(HomePhotoSpacing.avatar)) {
-                                    ClusterCell(cluster, cfg.serverUrl, cfg.apiKey) { person = cluster }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if (photos.isNotEmpty()) item {
+            if (photos.isNotEmpty() && memories?.memories.isNullOrEmpty()) item {
                 Column(verticalArrangement = Arrangement.spacedBy(HomePhotoSpacing.section)) {
                     DiscoverySectionTitle("최근에 담은 순간", "전체 사진", onPhotos)
                     photos.take(6).chunked(3).forEach { row ->
@@ -169,6 +170,22 @@ fun HomeScreen(repository: SettingsRepository, onPhotos: () -> Unit, onPeople: (
             }
         }
         selected?.let { index -> FullScreenViewer(photos, index, cfg.serverUrl, cfg.apiKey, onClose = { selected = null }) }
+    }
+}
+
+@Composable
+private fun MemoryCard(memory: MemorySummary, cfg: AppSettings, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(top = HomePhotoSpacing.item)) {
+        memory.coverAssetId?.let { id ->
+            AsyncImage(ImageRequest.Builder(LocalContext.current).data("${cfg.serverUrl}/api/v1/assets/$id/thumb?size=1600")
+                .setHeader("X-Api-Key", cfg.apiKey).build(), contentDescription = memory.title,
+                contentScale = ContentScale.Crop, modifier = Modifier.fillMaxWidth().aspectRatio(1.6f))
+        }
+        Column(Modifier.padding(HomePhotoSpacing.section), verticalArrangement = Arrangement.spacedBy(HomePhotoSpacing.item)) {
+            Text(memory.title, style = MaterialTheme.typography.titleLarge)
+            Text("${memoryPeriod(memory)} · ${memory.photoCount}장", style = MaterialTheme.typography.bodyMedium)
+            Text("눌러서 감상하기 →", color = MaterialTheme.colorScheme.primary)
+        }
     }
 }
 

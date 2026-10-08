@@ -176,6 +176,8 @@ internal fun FullScreenViewer(
         }
 
         items.getOrNull(pagerState.currentPage)?.let { asset ->
+            Text("${pagerState.currentPage + 1} / ${items.size}", color = Color.White,
+                modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)

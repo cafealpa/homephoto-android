@@ -61,7 +61,7 @@ internal fun FamilyAlbumScreen(api: HomePhotoApi, cfg: AppSettings, album: Famil
             finally { candidateBusy = false }
         }
     }
-    LaunchedEffect(api, refresh) {
+    LaunchedEffect(cfg.serverUrl, cfg.internalServerUrl, cfg.apiKey, refresh) {
         busy = true; error = null
         try {
             val value = api.familyAlbum(album.kind, album.date)

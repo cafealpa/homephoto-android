@@ -58,7 +58,22 @@ data class FamilyAlbumDetail(val summary: FamilyAlbumSummary, val note: String, 
 data class FamilyAlbumHome(val weekly: List<FamilyAlbumSummary>, val together: List<FamilyAlbumSummary>, val saved: List<FamilyAlbumSummary>)
 data class SaveFamilyAlbum(val title: String, val note: String, val assetIds: List<Long>, val revision: Int)
 
+data class MemorySummary(val id: Long, val title: String, val startDate: String, val endDate: String,
+    val coverAssetId: Long?, val photoCount: Int, val albumId: Long?)
+data class MemoryDetail(val summary: MemorySummary, val photos: List<AssetDto>)
+data class MemoryHome(val date: String, val memories: List<MemorySummary>, val saved: List<MemorySummary>)
+data class SaveMemoryAlbum(val title: String, val assetIds: List<Long>)
+
 interface HomePhotoApi {
+    @GET("api/v1/memories/home")
+    suspend fun memoriesHome(): MemoryHome
+    @GET("api/v1/memories/{id}")
+    suspend fun memory(@retrofit2.http.Path("id") id: Long): MemoryDetail
+    @GET("api/v1/memories/albums/{id}")
+    suspend fun memoryAlbum(@retrofit2.http.Path("id") id: Long): MemoryDetail
+    @POST("api/v1/memories/{id}/album")
+    suspend fun saveMemoryAlbum(@retrofit2.http.Path("id") id: Long, @Body request: SaveMemoryAlbum): MemoryDetail
+
     @GET("api/v1/family-albums/home")
     suspend fun familyAlbumsHome(): FamilyAlbumHome
     @GET("api/v1/family-albums/{kind}/{date}")
