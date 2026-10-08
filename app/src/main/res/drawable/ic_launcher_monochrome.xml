@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- 테마 색상으로 표시되는 사진 테두리와 하트. -->
+    <group android:rotation="12" android:pivotX="56" android:pivotY="58">
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+            android:pathData="M39,32 L76,32 Q80,32 80,36 L80,79 Q80,83 76,83 L39,83 Q35,83 35,79 L35,36 Q35,32 39,32 Z M40,37 L40,77 L75,77 L75,37 Z" />
+    </group>
+    <group android:rotation="-10" android:pivotX="51" android:pivotY="51">
+        <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
+            android:pathData="M30,25 L71,25 Q75,25 75,29 L75,74 Q75,78 71,78 L30,78 Q26,78 26,74 L26,29 Q26,25 30,25 Z M32,31 L32,69 L69,69 L69,31 Z" />
+        <path android:fillColor="#FFFFFFFF"
+            android:pathData="M51,62 C47,59 37,52 37,45 C37,37 47,35 51,42 C55,35 65,37 65,45 C65,52 55,59 51,62 Z" />
+    </group>
+</vector>
